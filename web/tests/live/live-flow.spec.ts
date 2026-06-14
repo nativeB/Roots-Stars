@@ -36,6 +36,55 @@ test('a relative can claim their star (persists to the backend)', async ({ page 
   await expect(star(page, 'Theo')).toHaveAttribute('data-claimed', 'true', { timeout: 5000 });
 });
 
+test('a relative can edit their details (persists + live to others)', async ({ browser }) => {
+  const ctxA = await browser.newContext();
+  const ctxB = await browser.newContext();
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  await a.goto(invite);
+  await b.goto(invite);
+  await a.getByRole('button', { name: /Got it/ }).click();
+  await b.getByRole('button', { name: /Got it/ }).click();
+
+  // edit Carol on device A
+  await star(a, 'Carol').click();
+  await a.getByTestId('edit-person').click();
+  await a.getByTestId('save-person').waitFor();
+  await a.locator('input').first().fill('Carol Ann');
+  await a.getByTestId('save-person').click();
+
+  // device B sees the new name without reload
+  await expect(star(b, 'Carol Ann')).toBeVisible({ timeout: 6000 });
+
+  await ctxA.close();
+  await ctxB.close();
+});
+
+test('a relative can be added and appears live for others', async ({ browser }) => {
+  const ctxA = await browser.newContext();
+  const ctxB = await browser.newContext();
+  const a = await ctxA.newPage();
+  const b = await ctxB.newPage();
+  await a.goto(invite);
+  await b.goto(invite);
+  await a.getByRole('button', { name: /Got it/ }).click();
+  await b.getByRole('button', { name: /Got it/ }).click();
+
+  // add a child of Iris on device A
+  await star(a, 'Iris').click();
+  await a.getByTestId('add-relative').click();
+  await a.getByTestId('new-relative-name').fill('Juno');
+  await a.getByTestId('rel-child').click();
+  await a.getByTestId('add-relative-submit').click();
+
+  // appears on both devices
+  await expect(star(a, 'Juno')).toBeVisible({ timeout: 6000 });
+  await expect(star(b, 'Juno')).toBeVisible({ timeout: 6000 });
+
+  await ctxA.close();
+  await ctxB.close();
+});
+
 test('a second device sees a claim live, without refreshing', async ({ browser }) => {
   const ctxA = await browser.newContext();
   const ctxB = await browser.newContext();

@@ -6,8 +6,18 @@ import { InviteFooter } from '../components/Onboard/InviteFooter';
 
 /** Live family sky behind an invite slug. */
 export function ConstellationView({ slug }: { slug: string }) {
-  const { people, unions, loading, error, ignitingId, familyName, claim, setIgniting } =
-    useConstellation();
+  const {
+    people,
+    unions,
+    loading,
+    error,
+    ignitingId,
+    familyName,
+    claim,
+    updatePerson,
+    addRelative,
+    setIgniting,
+  } = useConstellation();
 
   useEffect(() => {
     void useConstellation.getState().load(slug);
@@ -47,6 +57,8 @@ export function ConstellationView({ slug }: { slug: string }) {
         ignitingId={ignitingId}
         familyName={familyName}
         onLightUp={(id) => void claim(id)}
+        onSave={(id, fields) => updatePerson(id, fields)}
+        onAddRelative={(args) => addRelative(args)}
         footer={<InviteFooter slug={slug} />}
       />
       <PrivacyOneLiner />

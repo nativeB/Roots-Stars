@@ -3,9 +3,11 @@ import { WS_EVENTS } from '@roots/shared';
 import type {
   Person,
   PersonAddedPayload,
+  PersonCardFields,
   PersonClaimedPayload,
   PersonDeletedPayload,
   PersonUpdatedPayload,
+  RelationshipKind,
   Union,
   UnionAddedPayload,
 } from '@roots/shared';
@@ -26,6 +28,13 @@ interface ConstellationState {
   load: (slug: string) => Promise<void>;
   resync: () => Promise<void>;
   claim: (personId: string) => Promise<void>;
+  updatePerson: (personId: string, fields: Partial<PersonCardFields>) => Promise<void>;
+  addRelative: (args: {
+    name: string;
+    relationship: RelationshipKind;
+    anchorPersonId: string;
+    otherParentId?: string;
+  }) => Promise<void>;
   setIgniting: (personId: string | null) => void;
 }
 
@@ -84,6 +93,41 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
         ),
         ignitingId: null,
       }));
+    }
+  },
+
+  updatePerson: async (personId, fields) => {
+    // optimistic merge
+    const prev = get().people.find((p) => p.id === personId);
+    set((s) => ({
+      people: s.people.map((p) => (p.id === personId ? { ...p, ...fields } : p)),
+    }));
+    try {
+      const updated = await api.updatePerson(personId, fields);
+      set((s) => ({ people: s.people.map((p) => (p.id === personId ? updated : p)) }));
+    } catch {
+      if (prev) set((s) => ({ people: s.people.map((p) => (p.id === personId ? prev : p)) }));
+    }
+  },
+
+  addRelative: async ({ name, relationship, anchorPersonId, otherParentId }) => {
+    try {
+      const res = await api.addPerson({
+        fields: { name } as PersonCardFields,
+        attach: { anchorPersonId, relationship, otherParentId },
+      });
+      set((s) => ({
+        people: s.people.some((p) => p.id === res.person.id)
+          ? s.people
+          : [...s.people, res.person],
+        unions:
+          res.union && !s.unions.some((u) => u.id === res.union!.id)
+            ? [...s.unions, res.union]
+            : s.unions,
+      }));
+    } catch {
+      /* surfaced via UI disabled state; resync will reconcile */
+      void get().resync();
     }
   },
 

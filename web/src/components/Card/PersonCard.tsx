@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { Person } from '@roots/shared';
+import type { Person, PersonCardFields } from '@roots/shared';
+import { EditPersonForm } from './EditPersonForm';
 
 interface PersonCardProps {
   person: Person | null;
   onClose: () => void;
   onLightUp: (personId: string) => void;
+  /** When provided, enables Edit + Add-relative actions (live mode). */
+  onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
+  onAddRelative?: (anchor: Person) => void;
 }
 
 function birthdayText(p: Person): string | null {
@@ -14,8 +19,15 @@ function birthdayText(p: Person): string | null {
   return p.birthYear ? `${md}, ${p.birthYear}` : md;
 }
 
-/** Person card — slides up from the bottom on mobile. Read-only in Phase 1. */
-export function PersonCard({ person, onClose, onLightUp }: PersonCardProps) {
+/** Person card — slides up from the bottom on mobile. Read + edit + add-relative. */
+export function PersonCard({ person, onClose, onLightUp, onSave, onAddRelative }: PersonCardProps) {
+  const [editing, setEditing] = useState(false);
+
+  function close() {
+    setEditing(false);
+    onClose();
+  }
+
   return (
     <AnimatePresence>
       {person && (
@@ -25,13 +37,13 @@ export function PersonCard({ person, onClose, onLightUp }: PersonCardProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={close}
           />
           <motion.div
             role="dialog"
             aria-modal="true"
             aria-label={`${person.name} details`}
-            className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-md rounded-t-3xl bg-space-panel p-6 pb-8 shadow-2xl sm:bottom-4 sm:rounded-3xl"
+            className="fixed inset-x-0 bottom-0 z-20 mx-auto max-h-[88vh] max-w-md overflow-y-auto rounded-t-3xl bg-space-panel p-6 pb-8 shadow-2xl sm:bottom-4 sm:rounded-3xl"
             initial={{ y: '100%', opacity: 0.6 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0.4 }}
@@ -39,57 +51,91 @@ export function PersonCard({ person, onClose, onLightUp }: PersonCardProps) {
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted/40" />
 
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl"
-                style={{
-                  background: person.claimed
-                    ? 'radial-gradient(circle, rgba(255,208,138,0.35), rgba(255,208,138,0.05))'
-                    : 'radial-gradient(circle, rgba(155,150,196,0.25), transparent)',
+            {editing && onSave ? (
+              <EditPersonForm
+                person={person}
+                onSave={async (fields) => {
+                  await onSave(person.id, fields);
+                  setEditing(false);
                 }}
-                aria-hidden
-              >
-                {person.signatureEmoji ?? person.name.charAt(0)}
-              </div>
-              <div>
-                <h2 className="font-display text-2xl leading-tight text-starlight">
-                  {person.name}
-                  {person.nickname ? (
-                    <span className="ml-2 text-base text-muted">“{person.nickname}”</span>
-                  ) : null}
-                </h2>
-                {person.isDeceased && (
-                  <p className="text-sm text-muted">In loving memory ✦</p>
-                )}
-              </div>
-            </div>
-
-            {person.bio && <p className="mt-4 text-starlight/90">{person.bio}</p>}
-
-            <dl className="mt-4 grid grid-cols-1 gap-2 text-sm">
-              <Detail label="Birthday" value={birthdayText(person)} />
-              <Detail
-                label="From → now"
-                value={
-                  person.birthplace || person.currentLocation
-                    ? `${person.birthplace ?? '—'} → ${person.currentLocation ?? '—'}`
-                    : null
-                }
+                onCancel={() => setEditing(false)}
               />
-              <Detail label="Signature dish" value={person.signatureDish} />
-              <Detail label="Hidden talent" value={person.hiddenTalent} />
-              <Detail label="The song" value={person.song} />
-              <Detail label="Ask me about" value={person.askMeAbout} />
-            </dl>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl"
+                    style={{
+                      background: person.claimed
+                        ? 'radial-gradient(circle, rgba(255,208,138,0.35), rgba(255,208,138,0.05))'
+                        : 'radial-gradient(circle, rgba(155,150,196,0.25), transparent)',
+                    }}
+                    aria-hidden
+                  >
+                    {person.signatureEmoji ?? person.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h2 className="font-display text-2xl leading-tight text-starlight">
+                      {person.name}
+                      {person.nickname ? (
+                        <span className="ml-2 text-base text-muted">“{person.nickname}”</span>
+                      ) : null}
+                    </h2>
+                    {person.isDeceased && <p className="text-sm text-muted">In loving memory ✦</p>}
+                  </div>
+                </div>
 
-            {!person.claimed && (
-              <button
-                onClick={() => onLightUp(person.id)}
-                className="mt-6 w-full rounded-full bg-glow-gold py-3 font-body font-semibold text-space-deep transition hover:brightness-105 active:scale-[0.98]"
-                data-testid="light-it-up"
-              >
-                ✦ This is me — light it up
-              </button>
+                {person.bio && <p className="mt-4 text-starlight/90">{person.bio}</p>}
+
+                <dl className="mt-4 grid grid-cols-1 gap-2 text-sm">
+                  <Detail label="Birthday" value={birthdayText(person)} />
+                  <Detail
+                    label="From → now"
+                    value={
+                      person.birthplace || person.currentLocation
+                        ? `${person.birthplace ?? '—'} → ${person.currentLocation ?? '—'}`
+                        : null
+                    }
+                  />
+                  <Detail label="Signature dish" value={person.signatureDish} />
+                  <Detail label="Hidden talent" value={person.hiddenTalent} />
+                  <Detail label="The song" value={person.song} />
+                  <Detail label="Ask me about" value={person.askMeAbout} />
+                </dl>
+
+                {!person.claimed && (
+                  <button
+                    onClick={() => onLightUp(person.id)}
+                    className="mt-6 w-full rounded-full bg-glow-gold py-3 font-body font-semibold text-space-deep transition hover:brightness-105 active:scale-[0.98]"
+                    data-testid="light-it-up"
+                  >
+                    ✦ This is me — light it up
+                  </button>
+                )}
+
+                {(onSave || onAddRelative) && (
+                  <div className="mt-4 flex gap-2">
+                    {onSave && (
+                      <button
+                        onClick={() => setEditing(true)}
+                        className="flex-1 rounded-full bg-space-deep py-2.5 text-sm text-starlight"
+                        data-testid="edit-person"
+                      >
+                        Edit details
+                      </button>
+                    )}
+                    {onAddRelative && (
+                      <button
+                        onClick={() => onAddRelative(person)}
+                        className="flex-1 rounded-full bg-space-deep py-2.5 text-sm text-starlight"
+                        data-testid="add-relative"
+                      >
+                        + Add a relative
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </motion.div>
         </>

@@ -1,17 +1,24 @@
 import { useState } from 'react';
-import type { Person, Union } from '@roots/shared';
+import type { Person, PersonCardFields, RelationshipKind, Union } from '@roots/shared';
 import { Sky } from './Sky/Sky';
 import { PersonCard } from './Card/PersonCard';
 import { AccessibleList } from './ListView/AccessibleList';
+import { AddRelativeFlow } from './Relate/AddRelativeFlow';
 
 interface SkyShellProps {
   people: Person[];
   unions: Union[];
   ignitingId: string | null;
   familyName?: string;
-  /** Light up (claim) a person; returns once the claim is initiated. */
   onLightUp: (personId: string) => void;
-  /** Optional footer nudge slot (e.g. invite link). */
+  /** Live-mode actions. When omitted (demo), the card is read-only. */
+  onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
+  onAddRelative?: (args: {
+    name: string;
+    relationship: RelationshipKind;
+    anchorPersonId: string;
+    otherParentId?: string;
+  }) => Promise<void> | void;
   footer?: React.ReactNode;
 }
 
@@ -22,10 +29,13 @@ export function SkyShell({
   ignitingId,
   familyName,
   onLightUp,
+  onSave,
+  onAddRelative,
   footer,
 }: SkyShellProps) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [showList, setShowList] = useState(false);
+  const [addAnchor, setAddAnchor] = useState<Person | null>(null);
   const focused = people.find((p) => p.id === focusedId) ?? null;
 
   return (
@@ -65,7 +75,27 @@ export function SkyShell({
           onLightUp(id);
           setFocusedId(null);
         }}
+        onSave={onSave}
+        onAddRelative={
+          onAddRelative
+            ? (anchor) => {
+                setAddAnchor(anchor);
+                setFocusedId(null);
+              }
+            : undefined
+        }
       />
+
+      {addAnchor && onAddRelative && (
+        <AddRelativeFlow
+          anchor={addAnchor}
+          people={people}
+          onClose={() => setAddAnchor(null)}
+          onAdd={({ name, relationship, otherParentId }) =>
+            onAddRelative({ name, relationship, anchorPersonId: addAnchor.id, otherParentId })
+          }
+        />
+      )}
 
       {footer ?? (
         <p className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 text-center font-body text-sm text-muted">
