@@ -11,6 +11,8 @@ interface EditPersonFormProps {
   onUploadPhoto?: (file: File) => Promise<void>;
   /** Remove this star and its data (privacy §10). */
   onDelete?: () => Promise<void> | void;
+  /** other family members, for the "who you take after" picker */
+  people?: { id: string; name: string }[];
 }
 
 type FormState = Partial<Record<keyof PersonCardFields, string | boolean>>;
@@ -25,6 +27,7 @@ export function EditPersonForm({
   onCancel,
   onUploadPhoto,
   onDelete,
+  people = [],
 }: EditPersonFormProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -43,6 +46,7 @@ export function EditPersonForm({
     hiddenTalent: person.hiddenTalent ?? '',
     song: person.song ?? '',
     askMeAbout: person.askMeAbout ?? '',
+    takesAfterId: person.takesAfterId ?? '',
   });
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -72,6 +76,7 @@ export function EditPersonForm({
       hiddenTalent: str(form.hiddenTalent),
       song: str(form.song),
       askMeAbout: str(form.askMeAbout),
+      takesAfterId: str(form.takesAfterId),
     };
   }
 
@@ -203,6 +208,24 @@ export function EditPersonForm({
           <Field label="Ask me about…">
             <input className={inputCls} value={String(form.askMeAbout ?? '')} onChange={(e) => set('askMeAbout', e.target.value)} />
           </Field>
+          {people.length > 0 && (
+            <Field label="Who in the family you most take after">
+              <select
+                className={inputCls}
+                value={String(form.takesAfterId ?? '')}
+                onChange={(e) => set('takesAfterId', e.target.value)}
+              >
+                <option value="">— no one in particular —</option>
+                {people
+                  .filter((pp) => pp.id !== person.id)
+                  .map((pp) => (
+                    <option key={pp.id} value={pp.id}>
+                      {pp.name}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          )}
         </motion.div>
       )}
 

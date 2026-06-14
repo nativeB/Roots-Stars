@@ -44,6 +44,19 @@ body {
   border-radius: 4px;
 }
 
+/* Very slow ambient parallax drift for the background starfield. */
+@keyframes starfield-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+  50% {
+    transform: translate3d(-1.6%, 1.2%, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.04);
+  }
+}
+
 /* Respect reduced-motion globally: kill ambient drift/twinkle + transitions. */
 @media (prefers-reduced-motion: reduce) {
   *,

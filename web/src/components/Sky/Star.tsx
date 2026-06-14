@@ -7,6 +7,8 @@ interface StarProps {
   person: Person;
   igniting: boolean;
   focused: boolean;
+  /** this device's home star — gets a gentle "you are here" treatment */
+  isMe?: boolean;
   reducedMotion: boolean;
   onSelect: (personId: string) => void;
 }
@@ -19,7 +21,7 @@ const VIOLET = '#B58CFF';
  * halo; unclaimed stars glow a softer violet, quietly inviting a tap. Each is a
  * generous, thumb-friendly, keyboard-focusable target.
  */
-function StarImpl({ node, person, igniting, focused, reducedMotion, onSelect }: StarProps) {
+function StarImpl({ node, person, igniting, focused, isMe, reducedMotion, onSelect }: StarProps) {
   const claimed = person.claimed || igniting;
   const color = claimed ? GOLD : VIOLET;
   const core = claimed ? 9 : 7;
@@ -88,9 +90,39 @@ function StarImpl({ node, person, igniting, focused, reducedMotion, onSelect }: 
       {/* tiny specular highlight for a jewel-like read */}
       <circle cx={-core * 0.3} cy={-core * 0.3} r={core * 0.28} fill="#FFFFFF" opacity={0.7} />
 
+      {/* "you are here" — a gentle pulsing ring around this device's home star */}
+      {isMe && (
+        <motion.circle
+          r={core + 9}
+          fill="none"
+          stroke={GOLD}
+          strokeWidth={1.4}
+          strokeDasharray="3 5"
+          animate={reducedMotion ? { opacity: 0.7 } : { opacity: [0.4, 0.9, 0.4], scale: [1, 1.08, 1] }}
+          transition={{ duration: 2.6, repeat: reducedMotion ? 0 : Infinity, ease: 'easeInOut' }}
+          style={{ transformOrigin: 'center' }}
+        />
+      )}
+
       {/* focus ring */}
       {focused && (
         <circle r={core + 8} fill="none" stroke={GOLD} strokeWidth={1.5} opacity={0.9} />
+      )}
+
+      {/* "you" pill above the home star */}
+      {isMe && (
+        <text
+          y={-core - 12}
+          textAnchor="middle"
+          fill={GOLD}
+          fontFamily="Hanken Grotesk, sans-serif"
+          fontSize={10}
+          fontWeight={600}
+          letterSpacing={1}
+          style={{ pointerEvents: 'none', userSelect: 'none', textTransform: 'uppercase' }}
+        >
+          you
+        </text>
       )}
 
       {/* name label */}

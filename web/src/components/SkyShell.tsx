@@ -7,12 +7,15 @@ import { PersonCard } from './Card/PersonCard';
 import { ClaimFlow } from './Claim/ClaimFlow';
 import { AccessibleList } from './ListView/AccessibleList';
 import { AddRelativeFlow } from './Relate/AddRelativeFlow';
+import { AddYourStarFlow } from './Relate/AddYourStarFlow';
 
 interface SkyShellProps {
   people: Person[];
   unions: Union[];
   ignitingId: string | null;
   familyName?: string;
+  /** this device's home/"you are here" star */
+  meId?: string | null;
   onLightUp: (personId: string) => void;
   /** Live-mode actions. When omitted (demo), the card is read-only. */
   onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
@@ -24,6 +27,12 @@ interface SkyShellProps {
   }) => Promise<void> | void;
   onUploadPhoto?: (personId: string, file: File) => Promise<void>;
   onDelete?: (personId: string) => Promise<void> | void;
+  /** top-level "Add your star": create + attach + light the new visitor's own star */
+  onAddYourStar?: (args: {
+    name: string;
+    anchorPersonId: string;
+    relationship: RelationshipKind;
+  }) => Promise<void> | void;
   footer?: React.ReactNode;
 }
 
@@ -33,16 +42,19 @@ export function SkyShell({
   unions,
   ignitingId,
   familyName,
+  meId,
   onLightUp,
   onSave,
   onAddRelative,
   onUploadPhoto,
   onDelete,
+  onAddYourStar,
   footer,
 }: SkyShellProps) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [showList, setShowList] = useState(false);
   const [addAnchor, setAddAnchor] = useState<Person | null>(null);
+  const [addingSelf, setAddingSelf] = useState(false);
   const focused = people.find((p) => p.id === focusedId) ?? null;
 
   const litCount = people.filter((p) => p.claimed).length;
@@ -72,13 +84,31 @@ export function SkyShell({
           unions={unions}
           focusedId={focusedId}
           ignitingId={ignitingId}
+          meId={meId ?? null}
           onSelect={setFocusedId}
         />
+      )}
+
+      {/* "Find me" — re-center on this device's home star (returning visitor) */}
+      {!showList && meId && !focused && (
+        <button
+          onClick={() => setFocusedId(meId)}
+          className="pointer-events-auto absolute right-4 top-[104px] z-30 flex items-center gap-1.5 rounded-full border border-glow-gold/30 bg-glow-gold/10 px-3 py-1.5 text-xs font-medium text-glow-gold backdrop-blur-md transition hover:bg-glow-gold/20"
+          data-testid="find-me"
+        >
+          <span aria-hidden>✦</span> Find me
+        </button>
       )}
 
       {/* claimed star → read-only card */}
       <PersonCard
         person={viewTarget}
+        takesAfterName={
+          viewTarget?.takesAfterId
+            ? (people.find((p) => p.id === viewTarget.takesAfterId)?.name ?? null)
+            : null
+        }
+        people={people}
         onClose={() => setFocusedId(null)}
         onLightUp={(id) => {
           onLightUp(id);
@@ -121,10 +151,45 @@ export function SkyShell({
         />
       )}
 
-      {footer ?? (
-        <p className="pointer-events-none absolute bottom-4 left-0 right-0 z-10 text-center font-body text-sm text-muted">
-          Find yourself, or add your star ✦
-        </p>
+      {/* top-level "Add your star" self-attach flow */}
+      {addingSelf && onAddYourStar && (
+        <AddYourStarFlow
+          people={people}
+          onClose={() => setAddingSelf(false)}
+          onAdd={onAddYourStar}
+        />
+      )}
+
+      {/* warm empty state */}
+      {!showList && people.length === 0 && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-8 text-center">
+          <p className="font-display text-2xl text-starlight">No one here yet</p>
+          <p className="mt-2 max-w-xs font-body text-muted">
+            Add the first star and the sky begins to glow.
+          </p>
+        </div>
+      )}
+
+      {/* footer: invite nudge (if provided) above the Add-your-star pill */}
+      {!showList && (
+        <div className="absolute inset-x-0 bottom-4 z-10 flex flex-col items-center gap-2.5 px-5">
+          {footer}
+          {onAddYourStar ? (
+            <button
+              onClick={() => setAddingSelf(true)}
+              className="pointer-events-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full border border-glow-gold/40 bg-glow-gold/10 py-3.5 font-body font-semibold text-glow-gold backdrop-blur-md transition hover:bg-glow-gold/20"
+              data-testid="add-your-star"
+            >
+              ✦ Add your star
+            </button>
+          ) : (
+            !footer && (
+              <p className="pointer-events-none text-center font-body text-sm text-muted">
+                Find yourself, or add your star ✦
+              </p>
+            )
+          )}
+        </div>
       )}
 
       <SkyCelebration litCount={litCount} totalCount={people.length} />

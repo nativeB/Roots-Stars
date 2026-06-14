@@ -13,6 +13,7 @@ export function ConstellationView({ slug }: { slug: string }) {
     error,
     ignitingId,
     familyName,
+    meId,
     claim,
     updatePerson,
     addRelative,
@@ -58,11 +59,18 @@ export function ConstellationView({ slug }: { slug: string }) {
         unions={unions}
         ignitingId={ignitingId}
         familyName={familyName}
+        meId={meId}
         onLightUp={(id) => void claim(id)}
         onSave={(id, fields) => updatePerson(id, fields)}
-        onAddRelative={(args) => addRelative(args)}
+        onAddRelative={async (args) => {
+          await addRelative(args);
+        }}
         onUploadPhoto={(id, file) => uploadPhoto(id, file)}
         onDelete={(id) => removePerson(id)}
+        onAddYourStar={async ({ name, anchorPersonId, relationship }) => {
+          const created = await addRelative({ name, anchorPersonId, relationship });
+          if (created) await claim(created.id); // your new star lights up + becomes home
+        }}
         footer={<InviteFooter slug={slug} />}
       />
       <PrivacyOneLiner />

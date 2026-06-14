@@ -16,6 +16,8 @@ interface SkyProps {
   focusedId: string | null;
   /** person currently igniting (claim animation), or null */
   ignitingId: string | null;
+  /** this device's home/"you are here" star */
+  meId?: string | null;
   onSelect: (personId: string) => void;
   /** chrome insets so the auto-fit clears the header / footer */
   topInset?: number;
@@ -30,6 +32,7 @@ export function Sky({
   unions,
   focusedId,
   ignitingId,
+  meId = null,
   onSelect,
   topInset = 150,
   bottomInset = 120,
@@ -51,11 +54,12 @@ export function Sky({
     return new Map(segs.map((s) => [s.threadId, s.depth]));
   }, [ignitingId, people, unions]);
 
-  const { viewport, onPointerDown, onPointerMove, onPointerUp, onWheel, reset } = usePanZoom({
-    x: 0,
-    y: 0,
-    scale: 1,
-  });
+  const { viewport, onPointerDown, onPointerMove, onPointerUp, onWheel, reset, focusOn } =
+    usePanZoom({
+      x: 0,
+      y: 0,
+      scale: 1,
+    });
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -74,6 +78,19 @@ export function Sky({
     reset(layout.bounds, size.width, size.height, { top: topInset, bottom: bottomInset });
     didFit.current = true;
   }, [layout.bounds, size, reset, topInset, bottomInset]);
+
+  // tap-to-focus: smoothly zoom toward the selected star, parking it in the
+  // upper third so the card rising from the bottom doesn't cover it.
+  useEffect(() => {
+    if (!focusedId || size.width <= 1) return;
+    const node = layout.nodes.find((n) => n.personId === focusedId);
+    if (!node) return;
+    const targetScale = Math.min(1.9, Math.max(viewport.scale, 1.25));
+    const sx = size.width / 2;
+    const sy = Math.min(size.height * 0.34, size.height - bottomInset - 40);
+    focusOn(node.x, node.y, sx, sy, targetScale, reducedMotion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedId]);
 
   return (
     <div
@@ -126,6 +143,7 @@ export function Sky({
                   person={person}
                   igniting={ignitingId === n.personId}
                   focused={focusedId === n.personId}
+                  isMe={meId === n.personId}
                   reducedMotion={reducedMotion}
                   onSelect={onSelect}
                 />

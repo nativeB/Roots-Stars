@@ -13,6 +13,7 @@ import type {
 } from '@roots/shared';
 import { api, enterFamily } from '../lib/api';
 import { connectSocket } from '../lib/socket';
+import { getMyPersonId, setMyPersonId } from '../lib/deviceToken';
 
 interface ConstellationState {
   familyId: string | null;
@@ -24,6 +25,8 @@ interface ConstellationState {
   presence: number;
   /** person currently igniting (claim animation), or null */
   ignitingId: string | null;
+  /** the star this device claimed as "me" (home base), or null */
+  meId: string | null;
 
   load: (slug: string) => Promise<void>;
   resync: () => Promise<void>;
@@ -34,7 +37,7 @@ interface ConstellationState {
     relationship: RelationshipKind;
     anchorPersonId: string;
     otherParentId?: string;
-  }) => Promise<void>;
+  }) => Promise<Person | null>;
   uploadPhoto: (personId: string, file: File) => Promise<void>;
   removePerson: (personId: string) => Promise<void>;
   setIgniting: (personId: string | null) => void;
@@ -49,17 +52,21 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
   error: null,
   presence: 0,
   ignitingId: null,
+  meId: null,
 
   load: async (slug: string) => {
     set({ loading: true, error: null });
     try {
       const info = await enterFamily(slug);
       const snap = await api.snapshot();
+      // restore this device's "me" star (home base) if we've claimed one before
+      const me = getMyPersonId(info.familyId);
       set({
         familyId: info.familyId,
         familyName: snap.family.name,
         people: snap.people,
         unions: snap.unions,
+        meId: me && snap.people.some((p) => p.id === me) ? me : null,
         loading: false,
       });
       wireSocket(info.familyId, set, get);
@@ -78,8 +85,10 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
   },
 
   claim: async (personId: string) => {
-    // optimistic: ignite + mark claimed locally
-    set({ ignitingId: personId });
+    // optimistic: ignite + mark claimed locally; this becomes "my" home star
+    const familyId = get().familyId;
+    set({ ignitingId: personId, meId: personId });
+    if (familyId) setMyPersonId(familyId, personId);
     set((s) => ({
       people: s.people.map((p) =>
         p.id === personId ? { ...p, claimed: true, claimedAt: new Date().toISOString() } : p,
@@ -127,9 +136,11 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
             ? [...s.unions, res.union]
             : s.unions,
       }));
+      return res.person;
     } catch {
       /* surfaced via UI disabled state; resync will reconcile */
       void get().resync();
+      return null;
     }
   },
 

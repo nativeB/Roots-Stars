@@ -24,3 +24,22 @@ export function clearDeviceToken(familyId: string): void {
     /* ignore */
   }
 }
+
+/** The personId this device claimed as "me" — powers the home/"you are here" star. */
+const meKeyFor = (familyId: string) => `roots:me:${familyId}`;
+
+export function getMyPersonId(familyId: string): string | null {
+  try {
+    return localStorage.getItem(meKeyFor(familyId));
+  } catch {
+    return null;
+  }
+}
+
+export function setMyPersonId(familyId: string, personId: string): void {
+  try {
+    localStorage.setItem(meKeyFor(familyId), personId);
+  } catch {
+    /* ignore */
+  }
+}

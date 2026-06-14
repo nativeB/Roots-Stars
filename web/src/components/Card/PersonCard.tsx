@@ -13,6 +13,10 @@ interface PersonCardProps {
   onAddRelative?: (anchor: Person) => void;
   onUploadPhoto?: (personId: string, file: File) => Promise<void>;
   onDelete?: (personId: string) => Promise<void> | void;
+  /** resolved display name of who this person takes after (if set) */
+  takesAfterName?: string | null;
+  /** other members, for the edit form's "takes after" picker */
+  people?: { id: string; name: string }[];
 }
 
 function birthdayText(p: Person): string | null {
@@ -31,6 +35,8 @@ export function PersonCard({
   onAddRelative,
   onUploadPhoto,
   onDelete,
+  takesAfterName,
+  people = [],
 }: PersonCardProps) {
   const [editing, setEditing] = useState(false);
   const photoUrl = usePhotoUrl(person?.id ?? null, Boolean(person?.photoKey));
@@ -82,6 +88,7 @@ export function PersonCard({
                       }
                     : undefined
                 }
+                people={people}
               />
             ) : (
               <>
@@ -133,6 +140,7 @@ export function PersonCard({
                   <Detail label="Hidden talent" value={person.hiddenTalent} />
                   <Detail label="The song" value={person.song} />
                   <Detail label="Ask me about" value={person.askMeAbout} />
+                  <Detail label="Takes after" value={takesAfterName} />
                 </dl>
 
                 {!person.claimed && (

@@ -50,7 +50,15 @@ function StarfieldImpl({ width, height, reducedMotion }: StarfieldProps) {
   }, [width, height]);
 
   return (
-    <g aria-hidden="true" data-testid="starfield">
+    <g
+      aria-hidden="true"
+      data-testid="starfield"
+      style={
+        reducedMotion
+          ? undefined
+          : { animation: 'starfield-drift 90s ease-in-out infinite', transformOrigin: 'center' }
+      }
+    >
       {dust.map((d, i) => (
         <circle key={i} cx={d.x} cy={d.y} r={d.r} fill="#FBF7FF" opacity={d.o}>
           {!reducedMotion && (
