@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import type { Person, PersonCardFields, RelationshipKind, Union } from '@roots/shared';
 import { Sky } from './Sky/Sky';
+import { SkyHeader } from './SkyHeader';
+import { SkyCelebration } from './SkyCelebration';
 import { PersonCard } from './Card/PersonCard';
+import { ClaimFlow } from './Claim/ClaimFlow';
 import { AccessibleList } from './ListView/AccessibleList';
 import { AddRelativeFlow } from './Relate/AddRelativeFlow';
 
@@ -42,24 +45,25 @@ export function SkyShell({
   const [addAnchor, setAddAnchor] = useState<Person | null>(null);
   const focused = people.find((p) => p.id === focusedId) ?? null;
 
+  const litCount = people.filter((p) => p.claimed).length;
+
+  // tapping an unclaimed star opens the "Light your star" claim flow;
+  // a claimed star opens the read-only person card.
+  const claimTarget = focused && !focused.claimed ? focused : null;
+  const viewTarget = focused && focused.claimed ? focused : null;
+
   return (
     <main className="relative h-full w-full overflow-hidden bg-space-deep">
-      <header className="pointer-events-none absolute left-0 right-0 top-0 z-30 flex items-center justify-between p-4">
-        <h1 className="font-display text-lg text-starlight">
-          Roots <span className="text-glow-gold">&</span> Stars
-          {familyName ? <span className="ml-2 text-sm text-muted">· {familyName}</span> : null}
-        </h1>
-        <button
-          className="pointer-events-auto rounded-full bg-space-panel/80 px-3 py-1.5 text-sm text-starlight backdrop-blur"
-          onClick={() => setShowList((s) => !s)}
-          aria-pressed={showList}
-        >
-          {showList ? '✦ Sky' : '☰ List'}
-        </button>
-      </header>
+      <SkyHeader
+        familyName={familyName ?? 'Our family'}
+        litCount={litCount}
+        totalCount={people.length}
+        showList={showList}
+        onToggleList={() => setShowList((s) => !s)}
+      />
 
       {showList ? (
-        <div className="absolute inset-0 overflow-auto pt-16">
+        <div className="absolute inset-0 overflow-auto pt-28">
           <AccessibleList people={people} unions={unions} onSelect={setFocusedId} />
         </div>
       ) : (
@@ -72,8 +76,9 @@ export function SkyShell({
         />
       )}
 
+      {/* claimed star → read-only card */}
       <PersonCard
-        person={focused}
+        person={viewTarget}
         onClose={() => setFocusedId(null)}
         onLightUp={(id) => {
           onLightUp(id);
@@ -92,6 +97,19 @@ export function SkyShell({
         }
       />
 
+      {/* unclaimed star → "Light your star" claim flow */}
+      {claimTarget && (
+        <ClaimFlow
+          person={claimTarget}
+          onClose={() => setFocusedId(null)}
+          onLightUp={async (id, fields) => {
+            if (onSave) await onSave(id, fields);
+            onLightUp(id);
+            setFocusedId(null);
+          }}
+        />
+      )}
+
       {addAnchor && onAddRelative && (
         <AddRelativeFlow
           anchor={addAnchor}
@@ -108,6 +126,8 @@ export function SkyShell({
           Find yourself, or add your star ✦
         </p>
       )}
+
+      <SkyCelebration litCount={litCount} totalCount={people.length} />
     </main>
   );
 }

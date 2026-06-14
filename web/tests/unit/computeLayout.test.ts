@@ -8,19 +8,21 @@ describe('computeLayout', () => {
   it('positions every person and emits threads for partners + children', () => {
     const layout = computeLayout(fixturePeople, fixtureUnions);
     expect(layout.nodes).toHaveLength(fixturePeople.length);
-    // partner threads (3 unions, 2 have two partners → Edith+Walter, Walter+Carol, Maya+Devon)
+    // 4 unions, all two-partner → 4 partner threads
     const partnerThreads = layout.threads.filter((t) => t.kind === 'partner');
-    expect(partnerThreads.length).toBe(3);
-    // parent-child threads: Maya, Theo (E+W), Iris (W+C), Juniper, Rowan (M+D) = 5
+    expect(partnerThreads.length).toBe(4);
+    // parent-child threads: Kwame; Ama/Yaw/Adwoa; Esi; Kojo = 6
     const pcThreads = layout.threads.filter((t) => t.kind === 'parent-child');
-    expect(pcThreads.length).toBe(5);
+    expect(pcThreads.length).toBe(6);
   });
 
-  it('places half-siblings in different parent unions but the same generation band', () => {
+  it('places siblings in the same parent union and generation band', () => {
     const layout = computeLayout(fixturePeople, fixtureUnions);
-    const maya = layout.nodes.find((n) => n.personId === 'maya')!;
-    const iris = layout.nodes.find((n) => n.personId === 'iris')!;
-    expect(maya.generation).toBe(iris.generation); // same band (gen 1)
+    const ama = layout.nodes.find((n) => n.personId === 'ama')!;
+    const yaw = layout.nodes.find((n) => n.personId === 'yaw')!;
+    const adwoa = layout.nodes.find((n) => n.personId === 'adwoa')!;
+    expect(ama.generation).toBe(yaw.generation);
+    expect(ama.generation).toBe(adwoa.generation); // all gen 2, share kwame+akosua
   });
 
   it('handles 120+ nodes quickly (perf floor)', () => {
@@ -108,14 +110,17 @@ describe('computeLayout', () => {
 
 describe('computeLineage', () => {
   it('traces a child up through both parents to the eldest ancestors', () => {
-    // Juniper → Maya+Devon union → Maya → Edith+Walter union; Devon has no parents
-    const segs = computeLineage('juniper', fixturePeople, fixtureUnions);
+    // Esi → Ama+Kofi union → Ama → Kwame+Akosua union → Kwame → Nana+Efua union
+    const segs = computeLineage('esi', fixturePeople, fixtureUnions);
     const ids = segs.map((s) => s.threadId);
-    expect(ids).toContain('pc:u_maya_devon:juniper'); // depth 0
-    expect(ids).toContain('pc:u_edith_walter:maya'); // up Maya's line
+    expect(ids).toContain('pc:u_ama_kofi:esi'); // depth 0
+    expect(ids).toContain('pc:u_kwame_akosua:ama'); // up Ama's line
+    expect(ids).toContain('pc:u_nana_efuag:kwame'); // and further to the elders
     // depths increase up the tree
-    const junSeg = segs.find((s) => s.threadId === 'pc:u_maya_devon:juniper')!;
-    const mayaSeg = segs.find((s) => s.threadId === 'pc:u_edith_walter:maya')!;
-    expect(mayaSeg.depth).toBeGreaterThan(junSeg.depth);
+    const esiSeg = segs.find((s) => s.threadId === 'pc:u_ama_kofi:esi')!;
+    const amaSeg = segs.find((s) => s.threadId === 'pc:u_kwame_akosua:ama')!;
+    const kwameSeg = segs.find((s) => s.threadId === 'pc:u_nana_efuag:kwame')!;
+    expect(amaSeg.depth).toBeGreaterThan(esiSeg.depth);
+    expect(kwameSeg.depth).toBeGreaterThan(amaSeg.depth);
   });
 });

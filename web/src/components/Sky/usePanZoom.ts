@@ -9,6 +9,7 @@ export interface Viewport {
 
 const MIN_SCALE = 0.3;
 const MAX_SCALE = 3;
+const FIT_MAX_SCALE = 1.7; // cap for auto-fit so small families fill without ballooning
 
 /** Lightweight pan + pinch/wheel zoom for the SVG sky. Touch-first. */
 export function usePanZoom(initial: Viewport) {
@@ -50,14 +51,30 @@ export function usePanZoom(initial: Viewport) {
     });
   }, []);
 
-  const reset = useCallback((bounds: LayoutBounds, width: number, height: number) => {
-    const bw = bounds.maxX - bounds.minX || 1;
-    const bh = bounds.maxY - bounds.minY || 1;
-    const scale = clampScale(Math.min(width / bw, height / bh) * 0.85);
-    const x = width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale;
-    const y = height / 2 - ((bounds.minY + bounds.maxY) / 2) * scale;
-    setViewport({ x, y, scale });
-  }, []);
+  const reset = useCallback(
+    (
+      bounds: LayoutBounds,
+      width: number,
+      height: number,
+      insets: { top?: number; bottom?: number } = {},
+    ) => {
+      const top = insets.top ?? 0;
+      const bottom = insets.bottom ?? 0;
+      const availH = Math.max(1, height - top - bottom);
+      const bw = bounds.maxX - bounds.minX || 1;
+      const bh = bounds.maxY - bounds.minY || 1;
+      // fill the available frame generously; allow modest zoom-in for small
+      // families so the stars feel present rather than lost in space.
+      const raw = Math.min(width / bw, availH / bh) * 0.92;
+      const scale = Math.min(FIT_MAX_SCALE, clampScale(raw));
+      const cx = (bounds.minX + bounds.maxX) / 2;
+      const cy = (bounds.minY + bounds.maxY) / 2;
+      const x = width / 2 - cx * scale;
+      const y = top + availH / 2 - cy * scale;
+      setViewport({ x, y, scale });
+    },
+    [],
+  );
 
   return { viewport, setViewport, onPointerDown, onPointerMove, onPointerUp, onWheel, reset, pinch };
 }

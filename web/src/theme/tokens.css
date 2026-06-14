@@ -26,10 +26,14 @@ body {
   font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* A warm nebula wash so the base is never flat black. */
+  /* Layered nebula + a deepening toward the edges (vignette), so the field reads
+     as a warm, dimensional cosmos rather than flat black. */
   background-image:
-    radial-gradient(60% 50% at 20% 15%, rgba(181, 140, 255, 0.1), transparent 70%),
-    radial-gradient(50% 45% at 85% 80%, rgba(111, 227, 196, 0.08), transparent 70%);
+    radial-gradient(120% 90% at 50% -10%, rgba(24, 20, 54, 0) 55%, rgba(5, 4, 14, 0.9) 100%),
+    radial-gradient(70% 55% at 18% 12%, rgba(181, 140, 255, 0.16), transparent 60%),
+    radial-gradient(60% 50% at 85% 22%, rgba(111, 227, 196, 0.1), transparent 60%),
+    radial-gradient(80% 60% at 60% 95%, rgba(255, 162, 120, 0.07), transparent 60%),
+    linear-gradient(180deg, #100d28 0%, #0b0a1f 55%, #08071a 100%);
   background-attachment: fixed;
 }
 

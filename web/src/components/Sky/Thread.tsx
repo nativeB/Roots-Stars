@@ -21,13 +21,23 @@ function ThreadImpl({ thread, igniting, pulseDelay, reducedMotion }: ThreadProps
 
   return (
     <g>
+      {/* faint wide underglow so threads read as light, not wire */}
       <path
         d={thread.d}
         fill="none"
         stroke={`url(#${gradientId})`}
-        strokeWidth={thread.kind === 'partner' ? 1.4 : 1.1}
+        strokeWidth={thread.kind === 'partner' ? 4 : 3}
         strokeLinecap="round"
-        opacity={igniting ? 0.95 : 0.4}
+        opacity={igniting ? 0.5 : 0.14}
+        filter="url(#glow-strong)"
+      />
+      <path
+        d={thread.d}
+        fill="none"
+        stroke={`url(#${gradientId})`}
+        strokeWidth={thread.kind === 'partner' ? 1.5 : 1.2}
+        strokeLinecap="round"
+        opacity={igniting ? 0.98 : 0.55}
         style={{ transition: reducedMotion ? 'none' : 'opacity 0.5s ease' }}
       />
 

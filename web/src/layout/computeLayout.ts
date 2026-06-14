@@ -20,11 +20,11 @@ import type {
  * the layout identical across devices.
  */
 
-const BAND_HEIGHT = 200;
-const NODE_GAP = 130; // horizontal gap between sibling/unit slots
-const PARTNER_GAP = 90; // gap between two partners in a union
-const JITTER_X = 18;
-const JITTER_Y = 26;
+const BAND_HEIGHT = 260; // generous vertical breathing room between generations
+const NODE_GAP = 120; // horizontal gap between sibling/unit slots
+const PARTNER_GAP = 104; // gap between two partners in a union
+const JITTER_X = 14;
+const JITTER_Y = 30;
 const MAX_RELAX_ITERS = 12;
 
 /** Stable, deterministic pseudo-random in [-1, 1] from a string id. */

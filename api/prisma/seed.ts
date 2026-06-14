@@ -45,8 +45,12 @@ async function main() {
   const fid = family.id;
 
   // Generation 0
+  // A couple of elders arrive pre-lit so the sky opens warm, not empty.
+  const seedDevice = await prisma.device.create({ data: { familyId: fid, label: 'seed' } });
+  const lit = { claimedByDeviceId: seedDevice.id, claimedAt: new Date() };
+
   const edith = await prisma.person.create({
-    data: { familyId: fid, name: 'Edith', signatureEmoji: '🪡', isDeceased: true },
+    data: { familyId: fid, name: 'Edith', signatureEmoji: '🪡', isDeceased: true, ...lit },
   });
   const walter = await prisma.person.create({
     data: {
@@ -64,6 +68,7 @@ async function main() {
       song: 'Brahms — Hungarian Dance No. 5',
       askMeAbout: 'The boat he built in 1979',
       bio: 'Patriarch, fiddler, keeper of the family stories.',
+      ...lit,
     },
   });
   const carol = await prisma.person.create({

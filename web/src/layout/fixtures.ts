@@ -1,16 +1,14 @@
 import type { Person, Union } from '@roots/shared';
 
 /**
- * Hardcoded sample family for Phase 1 — proves the layout + look before any backend.
- * Deliberately includes the hard cases the union model must handle:
- *   - a couple with children (Edith + Walter → Maya, Theo)
- *   - a remarriage: Walter is in two unions (with Edith, then with Carol)
- *   - a half-sibling: Iris is Walter + Carol's child (shares Walter, not Edith)
- *   - a single parent: Maya has a union with one partner → her child Juniper
- *   - partners across a generation: Maya + Devon
+ * Hardcoded sample family for the demo sky (no backend). Warm, real-feeling names,
+ * and the hard cases the union model must handle:
+ *   - couples with children, a remarriage (Kwame in two unions),
+ *   - a half-sibling (Adwoa via Kwame + Akosua's later union),
+ *   - partners married into a generation, and grandchildren two bands down.
  */
 
-const now = '2026-06-13T00:00:00.000Z';
+const now = '2026-06-14T00:00:00.000Z';
 
 function p(
   id: string,
@@ -58,44 +56,47 @@ function u(id: string, partnerAId: string, partnerBId: string | null): Union {
   };
 }
 
+export const DEMO_FAMILY_NAME = 'The Mensah–Adjei family';
+
 export const fixturePeople: Person[] = [
-  // Generation 0 — eldest
-  p('edith', 'Edith', null, {
-    signatureEmoji: '🪡',
-    signatureDish: 'Apple strudel',
-    isDeceased: true,
-  }),
-  p('walter', 'Walter', null, {
-    signatureEmoji: '🎻',
-    nickname: 'Wally',
+  // Generation 0 — the elders
+  p('nana', 'Nana', null, { signatureEmoji: '🪘', claimed: true, claimedAt: now, isDeceased: true }),
+  p('efua-g', 'Efua', null, { signatureEmoji: '🧵', claimed: true, claimedAt: now }),
+
+  // Generation 1 — the founding couple + siblings
+  p('kwame', 'Kwame', 'u_nana_efuag', {
+    signatureEmoji: '🎷',
+    nickname: 'Papa K',
     claimed: true,
     claimedAt: now,
-    birthMonth: 4,
-    birthDay: 2,
-    birthYear: 1948,
-    birthplace: 'Kraków, Poland',
-    currentLocation: 'Portland, OR',
-    signatureDish: 'Pierogi (the real ones)',
-    hiddenTalent: 'Can whistle two notes at once',
-    song: 'Brahms — Hungarian Dance No. 5',
-    askMeAbout: 'The boat he built in 1979',
-    bio: 'Patriarch, fiddler, keeper of the family stories.',
+    birthMonth: 3,
+    birthDay: 9,
+    birthYear: 1951,
+    birthplace: 'Kumasi, Ghana',
+    currentLocation: 'London, UK',
+    signatureDish: 'Jollof (the undisputed best)',
+    hiddenTalent: 'Plays sax by ear',
+    song: 'Fela Kuti — Water No Get Enemy',
+    askMeAbout: 'The road trip across Ghana in ’78',
+    bio: 'Patriarch, saxophonist, keeper of the family stories.',
   }),
-  p('carol', 'Carol', null, { signatureEmoji: '🌻' }),
+  p('akosua', 'Akosua', null, { signatureEmoji: '🌺', claimed: true, claimedAt: now }),
 
-  // Generation 1 — Edith+Walter's kids, plus Walter+Carol's half-sibling, plus partners
-  p('maya', 'Maya', 'u_edith_walter', { signatureEmoji: '📷', claimed: true, claimedAt: now }),
-  p('theo', 'Theo', 'u_edith_walter', { signatureEmoji: '🪐' }),
-  p('iris', 'Iris', 'u_walter_carol', { signatureEmoji: '🎨' }), // half-sibling
-  p('devon', 'Devon', null, { signatureEmoji: '🎸' }), // married into gen 1 (Maya's partner)
+  // Generation 2 — Kwame + Akosua's children, plus partners
+  p('ama', 'Ama', 'u_kwame_akosua', { signatureEmoji: '📷', claimed: true, claimedAt: now }),
+  p('yaw', 'Yaw', 'u_kwame_akosua', { signatureEmoji: '⚽', claimed: true, claimedAt: now }),
+  p('adwoa', 'Adwoa', 'u_kwame_akosua', { signatureEmoji: '📚' }), // the unclaimed "you" slot
+  p('kofi', 'Kofi', null, { signatureEmoji: '🎬', claimed: true, claimedAt: now }), // married to Ama
+  p('efua', 'Efua', null, { signatureEmoji: '🎨' }), // married to Yaw
 
-  // Generation 2
-  p('juniper', 'Juniper', 'u_maya_devon', { signatureEmoji: '🦊', isMinor: true }),
-  p('rowan', 'Rowan', 'u_maya_devon', { signatureEmoji: '🐢', isMinor: true }),
+  // Generation 3 — grandchildren
+  p('esi', 'Esi', 'u_ama_kofi', { signatureEmoji: '☕', claimed: true, claimedAt: now }),
+  p('kojo', 'Kojo', 'u_yaw_efua', { signatureEmoji: '🌍', isMinor: true }),
 ];
 
 export const fixtureUnions: Union[] = [
-  u('u_edith_walter', 'edith', 'walter'),
-  u('u_walter_carol', 'walter', 'carol'), // remarriage: Walter again
-  u('u_maya_devon', 'maya', 'devon'),
+  u('u_nana_efuag', 'nana', 'efua-g'),
+  u('u_kwame_akosua', 'kwame', 'akosua'),
+  u('u_ama_kofi', 'ama', 'kofi'),
+  u('u_yaw_efua', 'yaw', 'efua'),
 ];

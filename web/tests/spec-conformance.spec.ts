@@ -51,24 +51,27 @@ test.describe('design tokens (§6)', () => {
 
   test('claimed stars are gold, unclaimed are dim lavender', async ({ page }) => {
     await page.goto('/');
-    // Walter is claimed in the fixture: group flagged claimed, core circle gold
-    await expect(page.locator('[data-testid="star-walter"]')).toHaveAttribute(
+    // Kwame is claimed in the fixture: group flagged claimed, core uses gold gradient
+    await expect(page.locator('[data-testid="star-kwame"]')).toHaveAttribute(
       'data-claimed',
       'true',
     );
-    await expect(page.locator('[data-testid="star-core-walter"]')).toHaveAttribute(
+    await expect(page.locator('[data-testid="star-core-kwame"]')).toHaveAttribute(
       'fill',
-      '#FFD08A',
+      'url(#core-gold)',
     );
-    // Theo is unclaimed: dim lavender
-    await expect(page.locator('[data-testid="star-theo"]')).toHaveAttribute(
+    // Adwoa is unclaimed: violet (the inviting "unlit" hue)
+    await expect(page.locator('[data-testid="star-adwoa"]')).toHaveAttribute(
       'data-claimed',
       'false',
     );
-    await expect(page.locator('[data-testid="star-core-theo"]')).toHaveAttribute(
+    await expect(page.locator('[data-testid="star-core-adwoa"]')).toHaveAttribute(
       'fill',
-      '#9B96C4',
+      'url(#core-violet)',
     );
+    // the gold + violet core gradients are defined
+    await expect(page.locator('#core-gold')).toHaveCount(1);
+    await expect(page.locator('#core-violet')).toHaveCount(1);
   });
 });
 

@@ -6,6 +6,7 @@ import { computeLineage } from '../../layout/lineagePath';
 import { SkyDefs } from './SkyDefs';
 import { Star } from './Star';
 import { Thread } from './Thread';
+import { Starfield } from './Starfield';
 import { IgniteOverlay } from './IgniteOverlay';
 import { usePanZoom } from './usePanZoom';
 
@@ -16,12 +17,23 @@ interface SkyProps {
   /** person currently igniting (claim animation), or null */
   ignitingId: string | null;
   onSelect: (personId: string) => void;
+  /** chrome insets so the auto-fit clears the header / footer */
+  topInset?: number;
+  bottomInset?: number;
 }
 
 const PULSE_STAGGER = 0.12; // seconds per generation depth
 
 /** The living constellation canvas. */
-export function Sky({ people, unions, focusedId, ignitingId, onSelect }: SkyProps) {
+export function Sky({
+  people,
+  unions,
+  focusedId,
+  ignitingId,
+  onSelect,
+  topInset = 150,
+  bottomInset = 120,
+}: SkyProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 1, height: 1 });
@@ -59,9 +71,9 @@ export function Sky({ people, unions, focusedId, ignitingId, onSelect }: SkyProp
   const didFit = useRef(false);
   useEffect(() => {
     if (didFit.current || size.width <= 1) return;
-    reset(layout.bounds, size.width, size.height);
+    reset(layout.bounds, size.width, size.height, { top: topInset, bottom: bottomInset });
     didFit.current = true;
-  }, [layout.bounds, size, reset]);
+  }, [layout.bounds, size, reset, topInset, bottomInset]);
 
   return (
     <div
@@ -85,6 +97,10 @@ export function Sky({ people, unions, focusedId, ignitingId, onSelect }: SkyProp
         data-igniting={ignitingId ? 'true' : 'false'}
       >
         <SkyDefs />
+
+        {/* fixed, far-away dust for depth */}
+        <Starfield width={size.width} height={size.height} reducedMotion={reducedMotion} />
+
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
           {/* threads under stars */}
           <g>

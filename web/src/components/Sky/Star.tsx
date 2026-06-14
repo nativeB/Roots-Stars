@@ -12,16 +12,20 @@ interface StarProps {
 }
 
 const GOLD = '#FFD08A';
-const LAVENDER = '#9B96C4';
+const VIOLET = '#B58CFF';
 
 /**
- * One person = one star. Claimed stars glow gold; unclaimed are dim lavender,
- * inviting a tap. Each is keyboard-focusable with an accessible label.
+ * One person = one luminous star. Claimed stars burn warm gold with a layered
+ * halo; unclaimed stars glow a softer violet, quietly inviting a tap. Each is a
+ * generous, thumb-friendly, keyboard-focusable target.
  */
 function StarImpl({ node, person, igniting, focused, reducedMotion, onSelect }: StarProps) {
   const claimed = person.claimed || igniting;
-  const color = claimed ? GOLD : LAVENDER;
-  const baseRadius = claimed ? 7 : 5;
+  const color = claimed ? GOLD : VIOLET;
+  const core = claimed ? 9 : 7;
+  // deterministic per-star twinkle timing so the sky shimmers, not strobes
+  const twinkleDur = 3.4 + ((node.x * 7 + node.y * 13) % 1000) / 1000 * 2.6;
+  const twinkleDelay = ((node.x * 31 + node.y * 17) % 1000) / 1000 * 2;
 
   const label = `${person.name}${person.claimed ? '' : ' — unclaimed star, tap to light it up'}`;
 
@@ -44,54 +48,75 @@ function StarImpl({ node, person, igniting, focused, reducedMotion, onSelect }: 
       }}
     >
       {/* generous invisible hit target for thumbs */}
-      <circle r={22} fill="transparent" />
+      <circle r={30} fill="transparent" />
 
-      {/* glow halo */}
+      {/* outer atmospheric glow */}
       <motion.circle
-        r={baseRadius * 2.6}
-        fill={color}
-        opacity={claimed ? 0.22 : 0.1}
-        filter="url(#glow-soft)"
+        r={core * 4.2}
+        fill={`url(#halo-${claimed ? 'gold' : 'violet'})`}
         animate={
           reducedMotion
             ? undefined
             : igniting
-              ? { scale: [1, 2.4, 1.3], opacity: [0.22, 0.6, 0.3] }
-              : { opacity: claimed ? [0.18, 0.28, 0.18] : [0.08, 0.13, 0.08] }
+              ? { scale: [1, 2.6, 1.4], opacity: [0.5, 0.9, 0.55] }
+              : { opacity: claimed ? [0.5, 0.72, 0.5] : [0.28, 0.42, 0.28] }
         }
         transition={
           igniting
-            ? { duration: 1.1, ease: 'easeOut' }
-            : { duration: 4 + (node.generation % 3), repeat: Infinity, ease: 'easeInOut' }
+            ? { duration: 1.2, ease: 'easeOut' }
+            : { duration: twinkleDur, delay: twinkleDelay, repeat: Infinity, ease: 'easeInOut' }
         }
+        style={{ transformOrigin: 'center' }}
       />
 
-      {/* the star core */}
+      {/* mid bloom */}
+      <circle r={core * 1.9} fill={color} opacity={claimed ? 0.28 : 0.16} filter="url(#glow-soft)" />
+
+      {/* the bright core */}
       <motion.circle
-        r={baseRadius}
-        fill={claimed ? GOLD : LAVENDER}
-        style={{ filter: claimed ? 'drop-shadow(0 0 6px rgba(255,208,138,0.9))' : 'none' }}
-        animate={reducedMotion ? undefined : igniting ? { scale: [1, 1.8, 1] } : undefined}
-        transition={{ duration: 0.9, ease: 'easeOut' }}
+        r={core}
+        fill={`url(#core-${claimed ? 'gold' : 'violet'})`}
+        stroke={claimed ? '#FFF4DE' : '#E7DBFF'}
+        strokeWidth={claimed ? 1.1 : 0.6}
+        strokeOpacity={0.85}
+        animate={reducedMotion ? undefined : igniting ? { scale: [1, 1.9, 1] } : undefined}
+        transition={{ duration: 1, ease: 'easeOut' }}
         data-testid={`star-core-${person.id}`}
+        style={{ transformOrigin: 'center' }}
       />
+
+      {/* tiny specular highlight for a jewel-like read */}
+      <circle cx={-core * 0.3} cy={-core * 0.3} r={core * 0.28} fill="#FFFFFF" opacity={0.7} />
 
       {/* focus ring */}
-      {focused && <circle r={baseRadius + 6} fill="none" stroke={GOLD} strokeWidth={1.5} opacity={0.9} />}
+      {focused && (
+        <circle r={core + 8} fill="none" stroke={GOLD} strokeWidth={1.5} opacity={0.9} />
+      )}
 
       {/* name label */}
       <text
-        y={baseRadius + 18}
+        y={core + 22}
         textAnchor="middle"
-        fill="#F5F3FF"
+        fill={claimed ? '#FBF7FF' : '#C9C2EC'}
         fontFamily="Fraunces, serif"
-        fontSize={13}
-        opacity={0.9}
+        fontSize={15}
+        fontWeight={500}
+        letterSpacing={0.2}
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >
-        {person.signatureEmoji ? `${person.signatureEmoji} ` : ''}
         {person.name}
       </text>
+      {person.signatureEmoji && (
+        <text
+          y={core + 40}
+          textAnchor="middle"
+          fontSize={13}
+          opacity={0.85}
+          style={{ pointerEvents: 'none', userSelect: 'none' }}
+        >
+          {person.signatureEmoji}
+        </text>
+      )}
     </g>
   );
 }

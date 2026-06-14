@@ -28,6 +28,7 @@ test('a relative can claim their star (persists to the backend)', async ({ page 
 
   await expect(star(page, 'Theo')).toHaveAttribute('data-claimed', 'false');
   await star(page, 'Theo').click();
+  await expect(page.getByTestId('claim-name')).toBeVisible();
   await page.getByTestId('light-it-up').click();
   await expect(star(page, 'Theo')).toHaveAttribute('data-claimed', 'true', { timeout: 5000 });
 
@@ -46,15 +47,15 @@ test('a relative can edit their details (persists + live to others)', async ({ b
   await a.getByRole('button', { name: /Got it/ }).click();
   await b.getByRole('button', { name: /Got it/ }).click();
 
-  // edit Carol on device A
-  await star(a, 'Carol').click();
+  // edit Walter (a claimed star → read-only card with Edit) on device A
+  await star(a, 'Walter').click();
   await a.getByTestId('edit-person').click();
   await a.getByTestId('save-person').waitFor();
-  await a.locator('input').first().fill('Carol Ann');
+  await a.locator('input').first().fill('Walter Snr');
   await a.getByTestId('save-person').click();
 
   // device B sees the new name without reload
-  await expect(star(b, 'Carol Ann')).toBeVisible({ timeout: 6000 });
+  await expect(star(b, 'Walter Snr')).toBeVisible({ timeout: 6000 });
 
   await ctxA.close();
   await ctxB.close();
@@ -70,8 +71,9 @@ test('a relative can be added and appears live for others', async ({ browser }) 
   await a.getByRole('button', { name: /Got it/ }).click();
   await b.getByRole('button', { name: /Got it/ }).click();
 
-  // add a child of Iris on device A
-  await star(a, 'Iris').click();
+  // add a child of Edith (a claimed star → read-only card with Add-relative).
+  // Edith is never renamed by other tests, so this is order-independent.
+  await star(a, 'Edith').click();
   await a.getByTestId('add-relative').click();
   await a.getByTestId('new-relative-name').fill('Juno');
   await a.getByTestId('rel-child').click();
@@ -96,8 +98,9 @@ test('a second device sees a claim live, without refreshing', async ({ browser }
   await a.getByRole('button', { name: /Got it/ }).click();
   await b.getByRole('button', { name: /Got it/ }).click();
 
-  // claim Maya on device A
+  // claim Maya on device A (unclaimed → "Light your star" flow)
   await star(a, 'Maya').click();
+  await expect(a.getByTestId('claim-name')).toBeVisible();
   await a.getByTestId('light-it-up').click();
 
   // device B reflects it without any reload

@@ -24,10 +24,18 @@ test('the populated constellation', async ({ page }) => {
 
 test('a person card', async ({ page }) => {
   await page.goto('/');
-  await page.locator('g[aria-label^="Walter"]').click();
+  await page.locator('g[aria-label^="Kwame"]').click(); // claimed → read-only card
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(300);
   await expect(page.getByRole('dialog')).toHaveScreenshot('person-card.png');
+});
+
+test('the claim flow ("Light your star")', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('g[aria-label^="Adwoa"]').click(); // unclaimed → claim flow
+  await expect(page.getByTestId('claim-name')).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(page.getByRole('dialog')).toHaveScreenshot('claim-flow.png');
 });
 
 test('the accessible list view', async ({ page }) => {
