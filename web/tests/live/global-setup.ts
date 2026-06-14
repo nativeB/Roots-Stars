@@ -17,11 +17,13 @@ const DB_URL =
   'postgresql://roots:roots@localhost:5436/rootsandstars?schema=public';
 
 export default async function globalSetup() {
-  const env = { ...process.env, DATABASE_URL: DB_URL };
+  // Force a FRESH random family per run (clear the dev stable-slug so the seed
+  // mints a new unguessable slug and tests start from clean state).
+  const env = { ...process.env, DATABASE_URL: DB_URL, DEV_SEED_SLUG: '' };
 
   // seed and grab the slug
   const out = execSync('npm run seed', { cwd: API_DIR, env }).toString();
-  const m = /\/j\/([A-Za-z0-9]+)/.exec(out);
+  const m = /\/j\/([A-Za-z0-9_-]+)/.exec(out);
   if (!m) throw new Error('Could not parse invite slug from seed output');
   writeFileSync(SLUG_FILE, m[1]!, 'utf8');
 

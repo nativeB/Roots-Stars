@@ -18,8 +18,22 @@ function slug(): string {
 }
 
 async function main() {
-  const inviteSlug = slug();
   const hostSecret = process.env.HOST_SECRET ?? 'dev-host-secret';
+  // For local dev we use a stable slug so re-running is idempotent and the
+  // invite link never changes. In prod (no DEV_SEED_SLUG) we mint a random one.
+  const fixedSlug = process.env.DEV_SEED_SLUG?.trim() || undefined;
+  const inviteSlug = fixedSlug ?? slug();
+  const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:5173';
+
+  if (fixedSlug) {
+    const existing = await prisma.family.findUnique({ where: { inviteSlug: fixedSlug } });
+    if (existing) {
+      console.log('\n✦ Demo family already seeded — reusing it');
+      console.log(`  Invite link: ${webOrigin}/j/${fixedSlug}`);
+      console.log(`  Host secret: ${hostSecret}\n`);
+      return;
+    }
+  }
 
   const family = await prisma.family.create({
     data: {
@@ -102,7 +116,6 @@ async function main() {
     },
   });
 
-  const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:5173';
   console.log('\n✦ Seeded "The Demo Family"');
   console.log(`  Invite link: ${webOrigin}/j/${inviteSlug}`);
   console.log(`  Host secret: ${hostSecret}\n`);
