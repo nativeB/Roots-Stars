@@ -29,18 +29,43 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
   const [dish, setDish] = useState(person.signatureDish ?? '');
   const [photo, setPhoto] = useState<Blob | undefined>(undefined);
   const [editPin, setEditPin] = useState<string | undefined>(undefined);
+  const [expanded, setExpanded] = useState(false);
+  // extra "sparkle" fields, revealed on demand so the form never feels like intake
+  const [bio, setBio] = useState(person.bio ?? '');
+  const [birthMonth, setBirthMonth] = useState(person.birthMonth?.toString() ?? '');
+  const [birthDay, setBirthDay] = useState(person.birthDay?.toString() ?? '');
+  const [birthYear, setBirthYear] = useState(person.birthYear?.toString() ?? '');
+  const [birthplace, setBirthplace] = useState(person.birthplace ?? '');
+  const [currentLocation, setCurrentLocation] = useState(person.currentLocation ?? '');
+  const [hiddenTalent, setHiddenTalent] = useState(person.hiddenTalent ?? '');
+  const [song, setSong] = useState(person.song ?? '');
+  const [askMeAbout, setAskMeAbout] = useState(person.askMeAbout ?? '');
   const [saving, setSaving] = useState(false);
 
   async function light() {
     if (!name.trim()) return;
     setSaving(true);
+    const s = (v: string) => v.trim() || null;
+    const n = (v: string) => {
+      const x = Number.parseInt(v, 10);
+      return Number.isFinite(x) ? x : null;
+    };
     try {
       await onLightUp(
         person.id,
         {
           name: name.trim(),
           signatureEmoji: emoji,
-          signatureDish: dish.trim() || null,
+          signatureDish: s(dish),
+          bio: s(bio),
+          birthMonth: n(birthMonth),
+          birthDay: n(birthDay),
+          birthYear: n(birthYear),
+          birthplace: s(birthplace),
+          currentLocation: s(currentLocation),
+          hiddenTalent: s(hiddenTalent),
+          song: s(song),
+          askMeAbout: s(askMeAbout),
         },
         { photo, editPin },
       );
@@ -130,9 +155,60 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
               value={dish}
               onChange={(e) => setDish(e.target.value)}
               placeholder="the thing everyone asks you to bring"
-              className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3.5 font-body text-[16px] text-starlight placeholder:text-muted/50 outline-none transition focus:border-glow-gold/70 focus:bg-white/[0.06]"
+              className={sparkleInput}
             />
           </div>
+
+          {!expanded && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="text-sm text-aurora-violet transition hover:text-aurora-teal"
+              data-testid="add-more-sparkle"
+            >
+              add more sparkle ✨
+            </button>
+          )}
+
+          {expanded && (
+            <motion.div
+              className="space-y-4"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+            >
+              <Sparkle label="One line about you">
+                <input value={bio} maxLength={120} onChange={(e) => setBio(e.target.value)} className={sparkleInput} />
+              </Sparkle>
+              <div className="grid grid-cols-3 gap-2">
+                <Sparkle label="Birth month">
+                  <input value={birthMonth} onChange={(e) => setBirthMonth(e.target.value)} inputMode="numeric" placeholder="MM" className={sparkleInput} />
+                </Sparkle>
+                <Sparkle label="Day">
+                  <input value={birthDay} onChange={(e) => setBirthDay(e.target.value)} inputMode="numeric" placeholder="DD" className={sparkleInput} />
+                </Sparkle>
+                <Sparkle label="Year (opt)">
+                  <input value={birthYear} onChange={(e) => setBirthYear(e.target.value)} inputMode="numeric" placeholder="YYYY" className={sparkleInput} />
+                </Sparkle>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Sparkle label="Where born">
+                  <input value={birthplace} onChange={(e) => setBirthplace(e.target.value)} className={sparkleInput} />
+                </Sparkle>
+                <Sparkle label="Where you live now">
+                  <input value={currentLocation} onChange={(e) => setCurrentLocation(e.target.value)} className={sparkleInput} />
+                </Sparkle>
+              </div>
+              <Sparkle label="Hidden talent">
+                <input value={hiddenTalent} onChange={(e) => setHiddenTalent(e.target.value)} className={sparkleInput} />
+              </Sparkle>
+              <Sparkle label="The song that defines you">
+                <input value={song} onChange={(e) => setSong(e.target.value)} className={sparkleInput} />
+              </Sparkle>
+              <Sparkle label="Ask me about…">
+                <input value={askMeAbout} onChange={(e) => setAskMeAbout(e.target.value)} className={sparkleInput} />
+              </Sparkle>
+            </motion.div>
+          )}
 
           <EditLockField onChange={setEditPin} />
         </div>
@@ -155,5 +231,17 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
         </button>
       </motion.div>
     </AnimatePresence>
+  );
+}
+
+const sparkleInput =
+  'w-full rounded-xl border border-white/12 bg-white/[0.04] px-3.5 py-2.5 font-body text-[15px] text-starlight placeholder:text-muted/50 outline-none transition focus:border-glow-gold/70 focus:bg-white/[0.06]';
+
+function Sparkle({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block font-body text-xs text-muted">{label}</span>
+      {children}
+    </label>
   );
 }
