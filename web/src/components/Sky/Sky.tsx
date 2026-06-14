@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import type { Person, Union } from '@roots/shared';
 import { computeLayout } from '../../layout/computeLayout';
 import { computeLineage } from '../../layout/lineagePath';
 import { SkyDefs } from './SkyDefs';
 import { Star } from './Star';
 import { Thread } from './Thread';
+import { IgniteOverlay } from './IgniteOverlay';
 import { usePanZoom } from './usePanZoom';
 
 interface SkyProps {
@@ -27,6 +28,9 @@ export function Sky({ people, unions, focusedId, ignitingId, onSelect }: SkyProp
 
   const layout = useMemo(() => computeLayout(people, unions), [people, unions]);
   const peopleById = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
+  const ignitingNode = ignitingId
+    ? (layout.nodes.find((n) => n.personId === ignitingId) ?? null)
+    : null;
 
   // lineage thread ids → depth, for the igniting person
   const igniteSegments = useMemo(() => {
@@ -78,6 +82,7 @@ export function Sky({ people, unions, focusedId, ignitingId, onSelect }: SkyProp
         onWheel={onWheel}
         style={{ display: 'block' }}
         data-testid="sky-canvas"
+        data-igniting={ignitingId ? 'true' : 'false'}
       >
         <SkyDefs />
         <g transform={`translate(${viewport.x} ${viewport.y}) scale(${viewport.scale})`}>
@@ -111,7 +116,30 @@ export function Sky({ people, unions, focusedId, ignitingId, onSelect }: SkyProp
               );
             })}
           </g>
+
+          {/* ignite ripple at the newly-lit star */}
+          {ignitingNode && (
+            <IgniteOverlay x={ignitingNode.x} y={ignitingNode.y} reducedMotion={reducedMotion} />
+          )}
         </g>
+
+        {/* whole-sky brightness nudge during ignite (skipped under reduced-motion) */}
+        <AnimatePresence>
+          {ignitingId && !reducedMotion && (
+            <motion.rect
+              x={0}
+              y={0}
+              width="100%"
+              height="100%"
+              fill="#FFD08A"
+              pointerEvents="none"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0, 0.06, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 2, ease: 'easeInOut' }}
+            />
+          )}
+        </AnimatePresence>
       </svg>
     </div>
   );
