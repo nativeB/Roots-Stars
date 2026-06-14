@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Person, PersonCardFields } from '@roots/shared';
 import { EditPersonForm } from './EditPersonForm';
+import { usePhotoUrl } from '../../lib/usePhotoUrl';
 
 interface PersonCardProps {
   person: Person | null;
@@ -10,6 +11,8 @@ interface PersonCardProps {
   /** When provided, enables Edit + Add-relative actions (live mode). */
   onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
   onAddRelative?: (anchor: Person) => void;
+  onUploadPhoto?: (personId: string, file: File) => Promise<void>;
+  onDelete?: (personId: string) => Promise<void> | void;
 }
 
 function birthdayText(p: Person): string | null {
@@ -20,8 +23,17 @@ function birthdayText(p: Person): string | null {
 }
 
 /** Person card — slides up from the bottom on mobile. Read + edit + add-relative. */
-export function PersonCard({ person, onClose, onLightUp, onSave, onAddRelative }: PersonCardProps) {
+export function PersonCard({
+  person,
+  onClose,
+  onLightUp,
+  onSave,
+  onAddRelative,
+  onUploadPhoto,
+  onDelete,
+}: PersonCardProps) {
   const [editing, setEditing] = useState(false);
+  const photoUrl = usePhotoUrl(person?.id ?? null, Boolean(person?.photoKey));
 
   function close() {
     setEditing(false);
@@ -59,6 +71,17 @@ export function PersonCard({ person, onClose, onLightUp, onSave, onAddRelative }
                   setEditing(false);
                 }}
                 onCancel={() => setEditing(false)}
+                onUploadPhoto={
+                  onUploadPhoto ? (file) => onUploadPhoto(person.id, file) : undefined
+                }
+                onDelete={
+                  onDelete
+                    ? async () => {
+                        await onDelete(person.id);
+                        close();
+                      }
+                    : undefined
+                }
               />
             ) : (
               <>
@@ -72,7 +95,16 @@ export function PersonCard({ person, onClose, onLightUp, onSave, onAddRelative }
                     }}
                     aria-hidden
                   >
-                    {person.signatureEmoji ?? person.name.charAt(0)}
+                    {photoUrl ? (
+                      <img
+                        src={photoUrl}
+                        alt=""
+                        loading="lazy"
+                        className="h-full w-full rounded-full object-cover"
+                      />
+                    ) : (
+                      (person.signatureEmoji ?? person.name.charAt(0))
+                    )}
                   </div>
                   <div>
                     <h2 className="font-display text-2xl leading-tight text-starlight">

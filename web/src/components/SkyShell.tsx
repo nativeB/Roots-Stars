@@ -19,6 +19,8 @@ interface SkyShellProps {
     anchorPersonId: string;
     otherParentId?: string;
   }) => Promise<void> | void;
+  onUploadPhoto?: (personId: string, file: File) => Promise<void>;
+  onDelete?: (personId: string) => Promise<void> | void;
   footer?: React.ReactNode;
 }
 
@@ -31,6 +33,8 @@ export function SkyShell({
   onLightUp,
   onSave,
   onAddRelative,
+  onUploadPhoto,
+  onDelete,
   footer,
 }: SkyShellProps) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -76,6 +80,8 @@ export function SkyShell({
           setFocusedId(null);
         }}
         onSave={onSave}
+        onUploadPhoto={onUploadPhoto}
+        onDelete={onDelete}
         onAddRelative={
           onAddRelative
             ? (anchor) => {

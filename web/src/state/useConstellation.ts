@@ -35,6 +35,8 @@ interface ConstellationState {
     anchorPersonId: string;
     otherParentId?: string;
   }) => Promise<void>;
+  uploadPhoto: (personId: string, file: File) => Promise<void>;
+  removePerson: (personId: string) => Promise<void>;
   setIgniting: (personId: string | null) => void;
 }
 
@@ -128,6 +130,23 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
     } catch {
       /* surfaced via UI disabled state; resync will reconcile */
       void get().resync();
+    }
+  },
+
+  uploadPhoto: async (personId, file) => {
+    const photoKey = await api.uploadPhoto(personId, file);
+    set((s) => ({
+      people: s.people.map((p) => (p.id === personId ? { ...p, photoKey } : p)),
+    }));
+  },
+
+  removePerson: async (personId) => {
+    const prev = get().people;
+    set({ people: prev.filter((p) => p.id !== personId) }); // optimistic
+    try {
+      await api.deletePerson(personId);
+    } catch {
+      set({ people: prev });
     }
   },
 

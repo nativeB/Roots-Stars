@@ -52,10 +52,21 @@ npm run -w @roots/web test:e2e:update     # update visual snapshots after intent
 
 ## Deploy (Railway, single service)
 
-1. Provision a **Postgres** plugin; reference its connection string as `DATABASE_URL`.
-2. Set the service **Root Directory** to the repo root; Nixpacks builds the monorepo.
-3. Set env vars (`API_SECRET`, `HOST_SECRET`, `R2_*`, `WEB_ORIGIN`).
-4. Build runs `npm ci && npm run build`; start runs `prisma migrate deploy && node api/dist/server.js`, which serves `web/dist` + the API + the WebSocket on one origin.
+One Railway service serves the SPA, the JSON API, and the WebSocket from one
+origin. Build + start are defined in [`nixpacks.toml`](nixpacks.toml).
+
+1. Add a **Postgres** plugin. In the app service, set `DATABASE_URL` to a
+   reference of the plugin's connection variable.
+2. Create a service from this repo with **Root Directory = repo root**. Nixpacks
+   reads `nixpacks.toml`:
+   - build: `npm ci` → build shared → build web → `prisma generate` → build api
+   - start: `prisma migrate deploy` → `node api/dist/server.js`
+3. Set env vars: `API_SECRET`, `HOST_SECRET`, and (for photos) `R2_ACCOUNT_ID`,
+   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_ENDPOINT`.
+   `PORT` is injected by Railway. Photos are optional — without R2 the app runs
+   fine and the photo picker simply reports it can't store images.
+4. After first deploy, seed a family once (Railway shell): `npm run -w @roots/api seed`,
+   then open the printed `/j/<slug>` invite link.
 
 ## Privacy
 

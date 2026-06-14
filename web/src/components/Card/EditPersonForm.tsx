@@ -1,11 +1,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Person, PersonCardFields } from '@roots/shared';
+import { compressForUpload } from '../../lib/imageCompress';
 
 interface EditPersonFormProps {
   person: Person;
   onSave: (fields: Partial<PersonCardFields>) => Promise<void> | void;
   onCancel: () => void;
+  /** Compress + upload a photo; resolves when stored. Omitted if photos disabled. */
+  onUploadPhoto?: (file: File) => Promise<void>;
+  /** Remove this star and its data (privacy §10). */
+  onDelete?: () => Promise<void> | void;
 }
 
 type FormState = Partial<Record<keyof PersonCardFields, string | boolean>>;
@@ -14,7 +19,16 @@ type FormState = Partial<Record<keyof PersonCardFields, string | boolean>>;
  * Edit a star's playful details. Name is the only required field; the rest live
  * behind an "add more sparkle" expander so the form feels like unlocking, not intake.
  */
-export function EditPersonForm({ person, onSave, onCancel }: EditPersonFormProps) {
+export function EditPersonForm({
+  person,
+  onSave,
+  onCancel,
+  onUploadPhoto,
+  onDelete,
+}: EditPersonFormProps) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoMsg, setPhotoMsg] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>({
     name: person.name,
     nickname: person.nickname ?? '',
@@ -37,11 +51,11 @@ export function EditPersonForm({ person, onSave, onCancel }: EditPersonFormProps
 
   function toFields(): Partial<PersonCardFields> {
     const num = (s: unknown) => {
-      const n = parseInt(String(s ?? ''), 10);
+      const n = Number.parseInt(typeof s === 'string' ? s : '', 10);
       return Number.isFinite(n) ? n : null;
     };
     const str = (s: unknown) => {
-      const t = String(s ?? '').trim();
+      const t = (typeof s === 'string' ? s : '').trim();
       return t.length ? t : null;
     };
     return {
@@ -59,6 +73,22 @@ export function EditPersonForm({ person, onSave, onCancel }: EditPersonFormProps
       song: str(form.song),
       askMeAbout: str(form.askMeAbout),
     };
+  }
+
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !onUploadPhoto) return;
+    setPhotoBusy(true);
+    setPhotoMsg(null);
+    try {
+      const blob = await compressForUpload(file);
+      await onUploadPhoto(new File([blob], 'photo.webp', { type: 'image/webp' }));
+      setPhotoMsg('Photo added ✦');
+    } catch {
+      setPhotoMsg('Couldn’t add the photo right now.');
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -82,6 +112,21 @@ export function EditPersonForm({ person, onSave, onCancel }: EditPersonFormProps
           autoFocus
         />
       </Field>
+
+      {onUploadPhoto && (
+        <Field label="Photo">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={pickPhoto}
+            disabled={photoBusy}
+            className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-space-deep file:px-3 file:py-1.5 file:text-starlight"
+            data-testid="photo-input"
+          />
+          {photoBusy && <span className="text-xs text-muted">Adding photo…</span>}
+          {photoMsg && <span className="text-xs text-aurora-teal">{photoMsg}</span>}
+        </Field>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Nickname">
@@ -178,6 +223,40 @@ export function EditPersonForm({ person, onSave, onCancel }: EditPersonFormProps
           Cancel
         </button>
       </div>
+
+      {onDelete && (
+        <div className="pt-2 text-center">
+          {confirmingDelete ? (
+            <span className="inline-flex items-center gap-2 text-sm text-muted">
+              Remove {person.name}’s star and all their details?
+              <button
+                type="button"
+                onClick={() => onDelete()}
+                className="rounded-full bg-red-500/80 px-3 py-1 text-white"
+                data-testid="confirm-delete"
+              >
+                Remove
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                className="text-muted underline"
+              >
+                Keep
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              className="text-xs text-muted underline hover:text-red-400"
+              data-testid="delete-person"
+            >
+              Remove this star
+            </button>
+          )}
+        </div>
+      )}
     </form>
   );
 }

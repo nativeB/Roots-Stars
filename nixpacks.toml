@@ -1,0 +1,22 @@
+# Railway single-origin build: one service serves the SPA + JSON API + WebSocket.
+# Set the Railway service Root Directory to the repo root and reference the
+# Postgres plugin's connection string as DATABASE_URL.
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[phases.build]
+# shared first, then the SPA, then the API (which serves web/dist).
+cmds = [
+  "npm run build:shared",
+  "npm run build:web",
+  "npx prisma generate --schema=api/prisma/schema.prisma",
+  "npm run build:api",
+]
+
+[start]
+# Apply migrations, then boot the single-origin server.
+cmd = "npx prisma migrate deploy --schema=api/prisma/schema.prisma && node api/dist/server.js"

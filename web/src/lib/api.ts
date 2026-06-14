@@ -76,4 +76,29 @@ export const api = {
       body: JSON.stringify({ secret }),
       skipAuth: true,
     }),
+
+  deletePerson: (id: string) => req<{ ok: true }>(`/person/${id}`, { method: 'DELETE' }),
+
+  exportData: () => req<unknown>('/family/export'),
+
+  photoUrl: (id: string) => req<{ url: string | null }>(`/person/${id}/photo-url`),
+
+  /** Presign → PUT to R2 → record the key. Returns the stored photoKey. */
+  async uploadPhoto(personId: string, blob: Blob): Promise<string> {
+    const { uploadUrl, photoKey } = await req<{ uploadUrl: string; photoKey: string }>(
+      '/upload/presign',
+      { method: 'POST', body: JSON.stringify({ personId, contentType: 'image/webp' }) },
+    );
+    const put = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/webp' },
+      body: blob,
+    });
+    if (!put.ok) throw new Error(`Upload failed: ${put.status}`);
+    await req(`/person/${personId}/photo`, {
+      method: 'POST',
+      body: JSON.stringify({ photoKey }),
+    });
+    return photoKey;
+  },
 };

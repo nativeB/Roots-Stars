@@ -16,6 +16,8 @@ export function ConstellationView({ slug }: { slug: string }) {
     claim,
     updatePerson,
     addRelative,
+    uploadPhoto,
+    removePerson,
     setIgniting,
   } = useConstellation();
 
@@ -59,6 +61,8 @@ export function ConstellationView({ slug }: { slug: string }) {
         onLightUp={(id) => void claim(id)}
         onSave={(id, fields) => updatePerson(id, fields)}
         onAddRelative={(args) => addRelative(args)}
+        onUploadPhoto={(id, file) => uploadPhoto(id, file)}
+        onDelete={(id) => removePerson(id)}
         footer={<InviteFooter slug={slug} />}
       />
       <PrivacyOneLiner />

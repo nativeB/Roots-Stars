@@ -9,8 +9,9 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests',
-  // live integration suite has its own config (needs API + Postgres)
-  testIgnore: '**/live/**',
+  // only Playwright specs; live suite + vitest unit tests are excluded
+  testMatch: '**/*.spec.ts',
+  testIgnore: ['**/live/**', '**/unit/**'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
