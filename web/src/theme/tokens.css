@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* §6 design tokens exposed as CSS vars too, for SVG fills/gradients and tests. */
+:root {
+  --space-deep: #0b0a1f;
+  --space-panel: #16142e;
+  --starlight: #f5f3ff;
+  --muted: #9b96c4;
+  --glow-gold: #ffd08a;
+  --aurora-teal: #6fe3c4;
+  --aurora-violet: #b58cff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--space-deep);
+  color: var(--starlight);
+  font-family: 'Hanken Grotesk', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* A warm nebula wash so the base is never flat black. */
+  background-image:
+    radial-gradient(60% 50% at 20% 15%, rgba(181, 140, 255, 0.1), transparent 70%),
+    radial-gradient(50% 45% at 85% 80%, rgba(111, 227, 196, 0.08), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* Visible keyboard focus everywhere (a11y, non-negotiable). */
+:focus-visible {
+  outline: 2px solid var(--glow-gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect reduced-motion globally: kill ambient drift/twinkle + transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

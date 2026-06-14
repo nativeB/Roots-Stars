@@ -1,0 +1,37 @@
+{
+  "name": "roots-and-stars",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A private, invite-only family constellation. Share one link; every relative lights up their star.",
+  "workspaces": [
+    "shared",
+    "api",
+    "web"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @roots/shared",
+    "build:web": "npm run build -w @roots/web",
+    "build:api": "npm run build -w @roots/api",
+    "build": "npm run build:shared && npm run build:web && npm run build:api",
+    "dev:api": "npm run dev -w @roots/api",
+    "dev:web": "npm run dev -w @roots/web",
+    "dev": "npm run build:shared && concurrently -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint .",
+    "test:e2e": "npm run test:e2e -w @roots/web",
+    "start": "npm run start -w @roots/api"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "concurrently": "^9.1.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}
