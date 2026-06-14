@@ -27,6 +27,8 @@ interface ConstellationState {
   ignitingId: string | null;
   /** the star this device claimed as "me" (home base), or null */
   meId: string | null;
+  /** personId → resolved photo URL (presigned), filled lazily for orb/card/list */
+  photoUrls: Record<string, string>;
 
   load: (slug: string) => Promise<void>;
   resync: () => Promise<void>;
@@ -38,8 +40,10 @@ interface ConstellationState {
     anchorPersonId: string;
     otherParentId?: string;
   }) => Promise<Person | null>;
-  uploadPhoto: (personId: string, file: File) => Promise<void>;
+  uploadPhoto: (personId: string, blob: Blob) => Promise<void>;
   removePerson: (personId: string) => Promise<void>;
+  /** ensure photoUrls[personId] is populated (presigned GET), if the person has a photo */
+  ensurePhotoUrl: (personId: string) => Promise<void>;
   setIgniting: (personId: string | null) => void;
 }
 
@@ -53,6 +57,7 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
   presence: 0,
   ignitingId: null,
   meId: null,
+  photoUrls: {},
 
   load: async (slug: string) => {
     set({ loading: true, error: null });
@@ -149,6 +154,25 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
     set((s) => ({
       people: s.people.map((p) => (p.id === personId ? { ...p, photoKey } : p)),
     }));
+    // refresh the resolved URL so the orb/card show the new face immediately
+    try {
+      const { url } = await api.photoUrl(personId);
+      if (url) set((s) => ({ photoUrls: { ...s.photoUrls, [personId]: url } }));
+    } catch {
+      /* non-fatal */
+    }
+  },
+
+  ensurePhotoUrl: async (personId) => {
+    if (get().photoUrls[personId]) return;
+    const person = get().people.find((p) => p.id === personId);
+    if (!person?.photoKey) return;
+    try {
+      const { url } = await api.photoUrl(personId);
+      if (url) set((s) => ({ photoUrls: { ...s.photoUrls, [personId]: url } }));
+    } catch {
+      /* non-fatal */
+    }
   },
 
   removePerson: async (personId) => {

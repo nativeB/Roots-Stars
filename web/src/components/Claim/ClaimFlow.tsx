@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Person, PersonCardFields } from '@roots/shared';
+import { PhotoPicker } from '../Card/PhotoPicker';
 
 interface ClaimFlowProps {
   person: Person;
   onClose: () => void;
-  /** Save details (if any) then light the star. */
-  onLightUp: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
+  /** Save details (if any) + optional photo, then light the star. */
+  onLightUp: (
+    personId: string,
+    fields: Partial<PersonCardFields>,
+    photo?: Blob,
+  ) => Promise<void> | void;
 }
 
 // A warm, curated starter set — "an emoji that's so you".
@@ -21,17 +26,22 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
   const [name, setName] = useState(person.name);
   const [emoji, setEmoji] = useState(person.signatureEmoji ?? '✦');
   const [dish, setDish] = useState(person.signatureDish ?? '');
+  const [photo, setPhoto] = useState<Blob | undefined>(undefined);
   const [saving, setSaving] = useState(false);
 
   async function light() {
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onLightUp(person.id, {
-        name: name.trim(),
-        signatureEmoji: emoji,
-        signatureDish: dish.trim() || null,
-      });
+      await onLightUp(
+        person.id,
+        {
+          name: name.trim(),
+          signatureEmoji: emoji,
+          signatureDish: dish.trim() || null,
+        },
+        photo,
+      );
     } finally {
       setSaving(false);
     }
@@ -65,7 +75,12 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
           A spot is waiting for you in this family’s sky. Two minutes, that’s all.
         </p>
 
-        <div className="mt-6 space-y-5">
+        {/* a face for the star — optional, but it's the warm part */}
+        <div className="mt-5 flex justify-center">
+          <PhotoPicker fallback={emoji} size={92} onPick={setPhoto} />
+        </div>
+
+        <div className="mt-5 space-y-5">
           <div>
             <label className="mb-1.5 block font-body text-sm text-muted" htmlFor="claim-name">
               Your name

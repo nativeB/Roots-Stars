@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Person, RelationshipKind } from '@roots/shared';
+import { PhotoPicker } from '../Card/PhotoPicker';
 
 interface AddYourStarFlowProps {
   people: Person[];
   onClose: () => void;
-  /** Create + attach the new "you" star, then light it. */
+  /** Create + attach the new "you" star, optionally with a photo, then light it. */
   onAdd: (args: {
     name: string;
     anchorPersonId: string;
     relationship: RelationshipKind;
+    photo?: Blob;
   }) => Promise<void> | void;
 }
 
@@ -29,6 +31,7 @@ export function AddYourStarFlow({ people, onClose, onAdd }: AddYourStarFlowProps
   const [name, setName] = useState('');
   const [anchorId, setAnchorId] = useState('');
   const [relationship, setRelationship] = useState<RelationshipKind>('child');
+  const [photo, setPhoto] = useState<Blob | undefined>(undefined);
   const [saving, setSaving] = useState(false);
 
   const anchor = useMemo(() => people.find((p) => p.id === anchorId), [people, anchorId]);
@@ -39,7 +42,7 @@ export function AddYourStarFlow({ people, onClose, onAdd }: AddYourStarFlowProps
     if (!canSubmit) return;
     setSaving(true);
     try {
-      await onAdd({ name: name.trim(), anchorPersonId: anchorId, relationship });
+      await onAdd({ name: name.trim(), anchorPersonId: anchorId, relationship, photo });
       onClose();
     } finally {
       setSaving(false);
@@ -73,7 +76,11 @@ export function AddYourStarFlow({ people, onClose, onAdd }: AddYourStarFlowProps
           Tell us your name and who you’re connected to — we’ll place you in the sky.
         </p>
 
-        <form onSubmit={submit} className="mt-6 space-y-5">
+        <div className="mt-5 flex justify-center">
+          <PhotoPicker fallback="✦" size={84} onPick={setPhoto} />
+        </div>
+
+        <form onSubmit={submit} className="mt-5 space-y-5">
           <label className="block">
             <span className="mb-1.5 block font-body text-sm text-muted">Your name</span>
             <input

@@ -9,6 +9,16 @@ export function DemoView() {
   const [unions, setUnions] = useState<Union[]>(fixtureUnions);
   const [ignitingId, setIgnitingId] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
+  // demo has no backend: keep picked photos as local object URLs so orbs show faces
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  const setLocalPhoto = useCallback((personId: string, blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    setPhotoUrls((m) => ({ ...m, [personId]: url }));
+    setPeople((prev) =>
+      prev.map((p) => (p.id === personId ? { ...p, photoKey: 'local' } : p)),
+    );
+  }, []);
 
   const lightUp = useCallback((personId: string) => {
     setIgnitingId(personId);
@@ -101,15 +111,18 @@ export function DemoView() {
       name,
       anchorPersonId,
       relationship,
+      photo,
     }: {
       name: string;
       anchorPersonId: string;
       relationship: RelationshipKind;
+      photo?: Blob;
     }) => {
       const p = addPersonLocal(name, anchorPersonId, relationship);
       lightUp(p.id);
+      if (photo) setLocalPhoto(p.id, photo);
     },
-    [addPersonLocal, lightUp],
+    [addPersonLocal, lightUp, setLocalPhoto],
   );
 
   return (
@@ -119,8 +132,10 @@ export function DemoView() {
       ignitingId={ignitingId}
       familyName={DEMO_FAMILY_NAME}
       meId={meId}
+      photoUrlFor={(id) => photoUrls[id]}
       onLightUp={lightUp}
       onSave={save}
+      onUploadPhoto={async (id, blob) => setLocalPhoto(id, blob)}
       onAddYourStar={addYourStar}
     />
   );

@@ -18,6 +18,8 @@ interface SkyProps {
   ignitingId: string | null;
   /** this device's home/"you are here" star */
   meId?: string | null;
+  /** resolve a person's photo URL for rendering inside the orb */
+  photoUrlFor?: (personId: string) => string | undefined;
   onSelect: (personId: string) => void;
   /** chrome insets so the auto-fit clears the header / footer */
   topInset?: number;
@@ -33,6 +35,7 @@ export function Sky({
   focusedId,
   ignitingId,
   meId = null,
+  photoUrlFor,
   onSelect,
   topInset = 150,
   bottomInset = 120,
@@ -144,6 +147,7 @@ export function Sky({
                   igniting={ignitingId === n.personId}
                   focused={focusedId === n.personId}
                   isMe={meId === n.personId}
+                  photoUrl={photoUrlFor?.(n.personId)}
                   reducedMotion={reducedMotion}
                   onSelect={onSelect}
                 />

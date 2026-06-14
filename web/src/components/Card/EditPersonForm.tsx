@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import type { Person, PersonCardFields } from '@roots/shared';
-import { compressForUpload } from '../../lib/imageCompress';
+import { PhotoPicker } from './PhotoPicker';
 
 interface EditPersonFormProps {
   person: Person;
   onSave: (fields: Partial<PersonCardFields>) => Promise<void> | void;
   onCancel: () => void;
-  /** Compress + upload a photo; resolves when stored. Omitted if photos disabled. */
-  onUploadPhoto?: (file: File) => Promise<void>;
+  /** Upload an already-compressed photo blob; resolves when stored. Omitted if disabled. */
+  onUploadPhoto?: (blob: Blob) => Promise<void>;
+  /** the person's current (presigned) photo URL, if any */
+  currentPhotoUrl?: string | null;
   /** Remove this star and its data (privacy §10). */
   onDelete?: () => Promise<void> | void;
   /** other family members, for the "who you take after" picker */
@@ -26,6 +28,7 @@ export function EditPersonForm({
   onSave,
   onCancel,
   onUploadPhoto,
+  currentPhotoUrl,
   onDelete,
   people = [],
 }: EditPersonFormProps) {
@@ -80,17 +83,15 @@ export function EditPersonForm({
     };
   }
 
-  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !onUploadPhoto) return;
+  async function uploadBlob(blob: Blob) {
+    if (!onUploadPhoto) return;
     setPhotoBusy(true);
     setPhotoMsg(null);
     try {
-      const blob = await compressForUpload(file);
-      await onUploadPhoto(new File([blob], 'photo.webp', { type: 'image/webp' }));
-      setPhotoMsg('Photo added ✦');
+      await onUploadPhoto(blob);
+      setPhotoMsg('Photo saved ✦');
     } catch {
-      setPhotoMsg('Couldn’t add the photo right now.');
+      setPhotoMsg('Couldn’t save the photo right now.');
     } finally {
       setPhotoBusy(false);
     }
@@ -119,18 +120,20 @@ export function EditPersonForm({
       </Field>
 
       {onUploadPhoto && (
-        <Field label="Photo">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={pickPhoto}
-            disabled={photoBusy}
-            className="block w-full text-sm text-muted file:mr-3 file:rounded-full file:border-0 file:bg-space-deep file:px-3 file:py-1.5 file:text-starlight"
-            data-testid="photo-input"
+        <div className="flex items-center gap-3">
+          <PhotoPicker
+            initialUrl={currentPhotoUrl}
+            fallback={person.signatureEmoji ?? person.name.charAt(0)}
+            size={72}
+            onPick={uploadBlob}
+            busy={photoBusy}
           />
-          {photoBusy && <span className="text-xs text-muted">Adding photo…</span>}
-          {photoMsg && <span className="text-xs text-aurora-teal">{photoMsg}</span>}
-        </Field>
+          <div className="text-sm">
+            <p className="text-starlight">Photo</p>
+            <p className="text-muted">Tap to add or change — optional.</p>
+            {photoMsg && <p className="mt-0.5 text-aurora-teal">{photoMsg}</p>}
+          </div>
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-3">

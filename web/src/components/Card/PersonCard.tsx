@@ -11,12 +11,14 @@ interface PersonCardProps {
   /** When provided, enables Edit + Add-relative actions (live mode). */
   onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
   onAddRelative?: (anchor: Person) => void;
-  onUploadPhoto?: (personId: string, file: File) => Promise<void>;
+  onUploadPhoto?: (personId: string, blob: Blob) => Promise<void>;
   onDelete?: (personId: string) => Promise<void> | void;
   /** resolved display name of who this person takes after (if set) */
   takesAfterName?: string | null;
   /** other members, for the edit form's "takes after" picker */
   people?: { id: string; name: string }[];
+  /** pre-resolved photo URL (overrides the internal lookup) */
+  photoUrl?: string;
 }
 
 function birthdayText(p: Person): string | null {
@@ -37,9 +39,11 @@ export function PersonCard({
   onDelete,
   takesAfterName,
   people = [],
+  photoUrl: photoUrlProp,
 }: PersonCardProps) {
   const [editing, setEditing] = useState(false);
-  const photoUrl = usePhotoUrl(person?.id ?? null, Boolean(person?.photoKey));
+  const fallbackUrl = usePhotoUrl(person?.id ?? null, Boolean(person?.photoKey));
+  const photoUrl = photoUrlProp ?? fallbackUrl;
 
   function close() {
     setEditing(false);
@@ -78,8 +82,9 @@ export function PersonCard({
                 }}
                 onCancel={() => setEditing(false)}
                 onUploadPhoto={
-                  onUploadPhoto ? (file) => onUploadPhoto(person.id, file) : undefined
+                  onUploadPhoto ? (blob) => onUploadPhoto(person.id, blob) : undefined
                 }
+                currentPhotoUrl={photoUrl}
                 onDelete={
                   onDelete
                     ? async () => {

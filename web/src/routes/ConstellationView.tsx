@@ -14,17 +14,26 @@ export function ConstellationView({ slug }: { slug: string }) {
     ignitingId,
     familyName,
     meId,
+    photoUrls,
     claim,
     updatePerson,
     addRelative,
     uploadPhoto,
     removePerson,
+    ensurePhotoUrl,
     setIgniting,
   } = useConstellation();
 
   useEffect(() => {
     void useConstellation.getState().load(slug);
   }, [slug]);
+
+  // lazily resolve presigned URLs for everyone who has a photo
+  useEffect(() => {
+    for (const p of people) {
+      if (p.photoKey && !photoUrls[p.id]) void ensurePhotoUrl(p.id);
+    }
+  }, [people, photoUrls, ensurePhotoUrl]);
 
   // settle the ignite ~2s after it begins (covers both local + remote ignites)
   useEffect(() => {
@@ -60,6 +69,7 @@ export function ConstellationView({ slug }: { slug: string }) {
         ignitingId={ignitingId}
         familyName={familyName}
         meId={meId}
+        photoUrlFor={(id) => photoUrls[id]}
         onLightUp={(id) => void claim(id)}
         onSave={(id, fields) => updatePerson(id, fields)}
         onAddRelative={async (args) => {
@@ -67,9 +77,12 @@ export function ConstellationView({ slug }: { slug: string }) {
         }}
         onUploadPhoto={(id, file) => uploadPhoto(id, file)}
         onDelete={(id) => removePerson(id)}
-        onAddYourStar={async ({ name, anchorPersonId, relationship }) => {
+        onAddYourStar={async ({ name, anchorPersonId, relationship, photo }) => {
           const created = await addRelative({ name, anchorPersonId, relationship });
-          if (created) await claim(created.id); // your new star lights up + becomes home
+          if (created) {
+            await claim(created.id); // your new star lights up + becomes home
+            if (photo) void uploadPhoto(created.id, photo);
+          }
         }}
         footer={<InviteFooter slug={slug} />}
       />

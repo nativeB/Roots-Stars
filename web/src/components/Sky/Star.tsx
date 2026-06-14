@@ -9,6 +9,8 @@ interface StarProps {
   focused: boolean;
   /** this device's home star — gets a gentle "you are here" treatment */
   isMe?: boolean;
+  /** resolved photo URL — rendered as the face inside the orb */
+  photoUrl?: string;
   reducedMotion: boolean;
   onSelect: (personId: string) => void;
 }
@@ -21,7 +23,16 @@ const VIOLET = '#B58CFF';
  * halo; unclaimed stars glow a softer violet, quietly inviting a tap. Each is a
  * generous, thumb-friendly, keyboard-focusable target.
  */
-function StarImpl({ node, person, igniting, focused, isMe, reducedMotion, onSelect }: StarProps) {
+function StarImpl({
+  node,
+  person,
+  igniting,
+  focused,
+  isMe,
+  photoUrl,
+  reducedMotion,
+  onSelect,
+}: StarProps) {
   const claimed = person.claimed || igniting;
   const color = claimed ? GOLD : VIOLET;
   const core = claimed ? 9 : 7;
@@ -87,8 +98,29 @@ function StarImpl({ node, person, igniting, focused, isMe, reducedMotion, onSele
         style={{ transformOrigin: 'center' }}
       />
 
-      {/* tiny specular highlight for a jewel-like read */}
-      <circle cx={-core * 0.3} cy={-core * 0.3} r={core * 0.28} fill="#FFFFFF" opacity={0.7} />
+      {/* a face inside the orb, if there is one — clipped to a warm ringed circle */}
+      {photoUrl && (
+        <g data-testid={`star-photo-${person.id}`}>
+          <clipPath id={`clip-${person.id}`}>
+            <circle r={core * 1.5} />
+          </clipPath>
+          <circle r={core * 1.5 + 1.4} fill="none" stroke={color} strokeWidth={1.6} opacity={0.95} />
+          <image
+            href={photoUrl}
+            x={-core * 1.5}
+            y={-core * 1.5}
+            width={core * 3}
+            height={core * 3}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#clip-${person.id})`}
+          />
+        </g>
+      )}
+
+      {/* tiny specular highlight for a jewel-like read (only on bare orbs) */}
+      {!photoUrl && (
+        <circle cx={-core * 0.3} cy={-core * 0.3} r={core * 0.28} fill="#FFFFFF" opacity={0.7} />
+      )}
 
       {/* "you are here" — a gentle pulsing ring around this device's home star */}
       {isMe && (

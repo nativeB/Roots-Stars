@@ -16,6 +16,8 @@ interface SkyShellProps {
   familyName?: string;
   /** this device's home/"you are here" star */
   meId?: string | null;
+  /** resolve a person's photo URL (orb, card, list). */
+  photoUrlFor?: (personId: string) => string | undefined;
   onLightUp: (personId: string) => void;
   /** Live-mode actions. When omitted (demo), the card is read-only. */
   onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
@@ -25,13 +27,14 @@ interface SkyShellProps {
     anchorPersonId: string;
     otherParentId?: string;
   }) => Promise<void> | void;
-  onUploadPhoto?: (personId: string, file: File) => Promise<void>;
+  onUploadPhoto?: (personId: string, blob: Blob) => Promise<void>;
   onDelete?: (personId: string) => Promise<void> | void;
   /** top-level "Add your star": create + attach + light the new visitor's own star */
   onAddYourStar?: (args: {
     name: string;
     anchorPersonId: string;
     relationship: RelationshipKind;
+    photo?: Blob;
   }) => Promise<void> | void;
   footer?: React.ReactNode;
 }
@@ -43,6 +46,7 @@ export function SkyShell({
   ignitingId,
   familyName,
   meId,
+  photoUrlFor,
   onLightUp,
   onSave,
   onAddRelative,
@@ -85,6 +89,7 @@ export function SkyShell({
           focusedId={focusedId}
           ignitingId={ignitingId}
           meId={meId ?? null}
+          photoUrlFor={photoUrlFor}
           onSelect={setFocusedId}
         />
       )}
@@ -109,6 +114,7 @@ export function SkyShell({
             : null
         }
         people={people}
+        photoUrl={viewTarget ? photoUrlFor?.(viewTarget.id) : undefined}
         onClose={() => setFocusedId(null)}
         onLightUp={(id) => {
           onLightUp(id);
@@ -132,10 +138,11 @@ export function SkyShell({
         <ClaimFlow
           person={claimTarget}
           onClose={() => setFocusedId(null)}
-          onLightUp={async (id, fields) => {
+          onLightUp={async (id, fields, photo) => {
             if (onSave) await onSave(id, fields);
             onLightUp(id);
             setFocusedId(null);
+            if (photo && onUploadPhoto) void onUploadPhoto(id, photo); // fire-and-forget
           }}
         />
       )}

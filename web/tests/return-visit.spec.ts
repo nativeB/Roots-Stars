@@ -1,5 +1,24 @@
 import { test, expect } from '@playwright/test';
 
+/** Generate a small colorful PNG in-page and return its bytes (no fixture file). */
+async function makeImage(page: import('@playwright/test').Page): Promise<Buffer> {
+  const bytes = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 200;
+    c.height = 200;
+    const x = c.getContext('2d')!;
+    x.fillStyle = '#B58CFF';
+    x.fillRect(0, 0, 200, 200);
+    x.fillStyle = '#FFD08A';
+    x.beginPath();
+    x.arc(100, 100, 60, 0, 7);
+    x.fill();
+    const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/png'));
+    return Array.from(new Uint8Array(await blob!.arrayBuffer()));
+  });
+  return Buffer.from(bytes);
+}
+
 /**
  * Returning-visitor + self-attach UX:
  *  - claiming a star marks it as "you" (home base) with a YOU label
@@ -44,6 +63,25 @@ test('top-level "Add your star" lets a new visitor self-attach', async ({ page }
     'true',
     { timeout: 4000 },
   );
+});
+
+test('a relative can add a photo while claiming their star', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('g[aria-label^="Adwoa"]').click();
+  await expect(page.getByTestId('claim-name')).toBeVisible();
+
+  // pick a photo → preview appears in the picker immediately
+  await page.getByTestId('photo-input').setInputFiles({
+    name: 'face.png',
+    mimeType: 'image/png',
+    buffer: await makeImage(page),
+  });
+  await expect(page.getByTestId('photo-picker').locator('img')).toBeVisible();
+
+  await page.getByTestId('light-it-up').click();
+
+  // the orb renders the face after lighting up
+  await expect(page.locator('[data-testid="star-photo-adwoa"]')).toBeAttached({ timeout: 4000 });
 });
 
 test('takes-after shows in the card after editing', async ({ page }) => {
