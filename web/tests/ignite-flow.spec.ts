@@ -18,7 +18,7 @@ test('a relative can light up their star', async ({ page }) => {
 
   // after the ignite settles, Theo is claimed → gold
   await expect(theo).toHaveAttribute('data-claimed', 'true', { timeout: 4000 });
-  await expect(theo).toHaveAttribute('fill', '#FFD08A');
+  await expect(page.locator('[data-testid="star-core-theo"]')).toHaveAttribute('fill', '#FFD08A');
 });
 
 test('list view shows everyone and their relationships (a11y fallback)', async ({ page }) => {

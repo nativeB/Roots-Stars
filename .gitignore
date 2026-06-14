@@ -13,6 +13,8 @@ web/test-results/
 web/playwright-report/
 web/blob-report/
 web/.cache/
+web/tests/live/.live-slug
+web/tests/live/.api-pid
 
 # Prisma
 api/prisma/*.db

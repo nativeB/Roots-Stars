@@ -51,14 +51,24 @@ test.describe('design tokens (§6)', () => {
 
   test('claimed stars are gold, unclaimed are dim lavender', async ({ page }) => {
     await page.goto('/');
-    // Walter is claimed in the fixture
-    const claimed = page.locator('[data-testid="star-walter"]');
-    await expect(claimed).toHaveAttribute('data-claimed', 'true');
-    await expect(claimed).toHaveAttribute('fill', '#FFD08A');
-    // Theo is unclaimed
-    const unclaimed = page.locator('[data-testid="star-theo"]');
-    await expect(unclaimed).toHaveAttribute('data-claimed', 'false');
-    await expect(unclaimed).toHaveAttribute('fill', '#9B96C4');
+    // Walter is claimed in the fixture: group flagged claimed, core circle gold
+    await expect(page.locator('[data-testid="star-walter"]')).toHaveAttribute(
+      'data-claimed',
+      'true',
+    );
+    await expect(page.locator('[data-testid="star-core-walter"]')).toHaveAttribute(
+      'fill',
+      '#FFD08A',
+    );
+    // Theo is unclaimed: dim lavender
+    await expect(page.locator('[data-testid="star-theo"]')).toHaveAttribute(
+      'data-claimed',
+      'false',
+    );
+    await expect(page.locator('[data-testid="star-core-theo"]')).toHaveAttribute(
+      'fill',
+      '#9B96C4',
+    );
   });
 });
 

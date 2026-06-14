@@ -1,0 +1,112 @@
+// Roots & Stars — union-based family graph (NOT a tree).
+// Remarriages, half-siblings, and single parents break naive parent→child trees,
+// so children attach to a *union* and siblings share a parentUnionId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Family {
+  id            String   @id @default(cuid())
+  name          String
+  inviteSlug    String   @unique // long, unguessable; the capability key
+  hostTokenHash String // hash of the host secret for this family
+  createdAt     DateTime @default(now())
+
+  people  Person[]
+  unions  Union[]
+  devices Device[]
+  edits   Edit[]
+}
+
+model Person {
+  id       String @id @default(cuid())
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  // graph: the union this person was born into (their parents). Siblings share it.
+  parentUnionId String?
+  parentUnion   Union?  @relation("Children", fields: [parentUnionId], references: [id], onDelete: SetNull)
+
+  // card fields — all optional except name
+  name            String
+  nickname        String?
+  photoKey        String? // R2 object key
+  birthMonth      Int?
+  birthDay        Int?
+  birthYear       Int? // optional even when month/day set (privacy)
+  birthplace      String?
+  currentLocation String?
+  signatureEmoji  String?
+  signatureDish   String?
+  hiddenTalent    String?
+  song            String?
+  askMeAbout      String?
+  takesAfterId    String? // soft pointer to another person
+  bio             String?
+
+  isDeceased        Boolean   @default(false)
+  isMinor           Boolean   @default(false) // gates sensitive-field visibility
+  claimedByDeviceId String?
+  claimedAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unionsAsA Union[] @relation("PartnerA")
+  unionsAsB Union[] @relation("PartnerB")
+
+  @@index([familyId])
+  @@index([parentUnionId])
+}
+
+model Union {
+  id       String @id @default(cuid())
+  familyId String
+  family   Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  partnerAId String
+  partnerA   Person  @relation("PartnerA", fields: [partnerAId], references: [id], onDelete: Cascade)
+  partnerBId String? // null → single parent
+  partnerB   Person? @relation("PartnerB", fields: [partnerBId], references: [id], onDelete: SetNull)
+
+  unionType String   @default("partners") // married | partners | other
+  children  Person[] @relation("Children")
+  createdAt DateTime @default(now())
+
+  @@index([familyId])
+  @@index([partnerAId])
+  @@index([partnerBId])
+}
+
+// An account-less "device" that has claimed one or more stars (no password).
+model Device {
+  id        String   @id @default(cuid())
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  label     String?
+  createdAt DateTime @default(now())
+
+  @@index([familyId])
+}
+
+// Lightweight audit log: powers V1.1 undo + host moderation.
+model Edit {
+  id        String   @id @default(cuid())
+  familyId  String
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  deviceId  String?
+  entity    String // "person" | "union"
+  entityId  String
+  action    String // created | updated | claimed | deleted
+  diff      Json?
+  createdAt DateTime @default(now())
+
+  @@index([familyId])
+  @@index([entityId])
+}

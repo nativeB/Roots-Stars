@@ -31,6 +31,9 @@ function StarImpl({ node, person, igniting, focused, reducedMotion, onSelect }: 
       role="button"
       tabIndex={0}
       aria-label={label}
+      data-person-name={person.name}
+      data-claimed={person.claimed ? 'true' : 'false'}
+      data-testid={`star-${person.id}`}
       style={{ cursor: 'pointer', outline: 'none' }}
       onClick={() => onSelect(person.id)}
       onKeyDown={(e) => {
@@ -70,8 +73,7 @@ function StarImpl({ node, person, igniting, focused, reducedMotion, onSelect }: 
         style={{ filter: claimed ? 'drop-shadow(0 0 6px rgba(255,208,138,0.9))' : 'none' }}
         animate={reducedMotion ? undefined : igniting ? { scale: [1, 1.8, 1] } : undefined}
         transition={{ duration: 0.9, ease: 'easeOut' }}
-        data-claimed={person.claimed ? 'true' : 'false'}
-        data-testid={`star-${person.id}`}
+        data-testid={`star-core-${person.id}`}
       />
 
       {/* focus ring */}
