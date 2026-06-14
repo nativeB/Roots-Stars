@@ -37,6 +37,8 @@ export const personSchema = personCardFields.extend({
   photoKey: z.string().nullable(),
   claimed: z.boolean(),
   claimedAt: z.string().datetime().nullable(),
+  /** whether this star has an optional edit-lock PIN set (the PIN itself is never sent) */
+  locked: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

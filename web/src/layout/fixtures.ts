@@ -39,6 +39,7 @@ function p(
     isMinor: false,
     claimed: false,
     claimedAt: null,
+    locked: false,
     createdAt: now,
     updatedAt: now,
     ...extra,

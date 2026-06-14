@@ -20,21 +20,42 @@ export function DemoView() {
     );
   }, []);
 
-  const lightUp = useCallback((personId: string) => {
+  const lightUp = useCallback((personId: string, opts?: { editPin?: string }) => {
     setIgnitingId(personId);
     setMeId(personId); // the star you light becomes your home base in the demo
     setPeople((prev) =>
       prev.map((p) =>
-        p.id === personId ? { ...p, claimed: true, claimedAt: new Date().toISOString() } : p,
+        p.id === personId
+          ? {
+              ...p,
+              claimed: true,
+              claimedAt: new Date().toISOString(),
+              locked: Boolean(opts?.editPin) || p.locked,
+            }
+          : p,
       ),
     );
     globalThis.setTimeout(() => setIgnitingId(null), 2000);
   }, []);
 
   // merge edited/claim-flow fields locally so the demo reflects them
-  const save = useCallback((personId: string, fields: Record<string, unknown>) => {
-    setPeople((prev) => prev.map((p) => (p.id === personId ? { ...p, ...fields } : p)));
-  }, []);
+  const save = useCallback(
+    (
+      personId: string,
+      fields: Record<string, unknown>,
+      opts?: { editPin?: string; setEditPin?: string | null },
+    ) => {
+      setPeople((prev) =>
+        prev.map((p) => {
+          if (p.id !== personId) return p;
+          const next = { ...p, ...fields };
+          if (opts?.setEditPin !== undefined) next.locked = opts.setEditPin !== null;
+          return next;
+        }),
+      );
+    },
+    [],
+  );
 
   const blank = useCallback(
     (id: string, name: string, parentUnionId: string | null): Person => ({
@@ -60,6 +81,7 @@ export function DemoView() {
       isMinor: false,
       claimed: false,
       claimedAt: null,
+      locked: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }),

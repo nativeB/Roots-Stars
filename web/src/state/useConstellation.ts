@@ -32,8 +32,12 @@ interface ConstellationState {
 
   load: (slug: string) => Promise<void>;
   resync: () => Promise<void>;
-  claim: (personId: string) => Promise<void>;
-  updatePerson: (personId: string, fields: Partial<PersonCardFields>) => Promise<void>;
+  claim: (personId: string, editPin?: string) => Promise<void>;
+  updatePerson: (
+    personId: string,
+    fields: Partial<PersonCardFields>,
+    opts?: { editPin?: string; setEditPin?: string | null },
+  ) => Promise<void>;
   addRelative: (args: {
     name: string;
     relationship: RelationshipKind;
@@ -89,18 +93,20 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
     }
   },
 
-  claim: async (personId: string) => {
+  claim: async (personId: string, editPin?: string) => {
     // optimistic: ignite + mark claimed locally; this becomes "my" home star
     const familyId = get().familyId;
     set({ ignitingId: personId, meId: personId });
     if (familyId) setMyPersonId(familyId, personId);
     set((s) => ({
       people: s.people.map((p) =>
-        p.id === personId ? { ...p, claimed: true, claimedAt: new Date().toISOString() } : p,
+        p.id === personId
+          ? { ...p, claimed: true, claimedAt: new Date().toISOString(), locked: Boolean(editPin) }
+          : p,
       ),
     }));
     try {
-      await api.claimPerson(personId);
+      await api.claimPerson(personId, editPin);
     } catch {
       // rollback claim on failure
       set((s) => ({
@@ -112,17 +118,18 @@ export const useConstellation = create<ConstellationState>((set, get) => ({
     }
   },
 
-  updatePerson: async (personId, fields) => {
+  updatePerson: async (personId, fields, opts) => {
     // optimistic merge
     const prev = get().people.find((p) => p.id === personId);
     set((s) => ({
       people: s.people.map((p) => (p.id === personId ? { ...p, ...fields } : p)),
     }));
     try {
-      const updated = await api.updatePerson(personId, fields);
+      const updated = await api.updatePerson(personId, fields, opts);
       set((s) => ({ people: s.people.map((p) => (p.id === personId ? updated : p)) }));
-    } catch {
+    } catch (e) {
       if (prev) set((s) => ({ people: s.people.map((p) => (p.id === personId ? prev : p)) }));
+      throw e; // let the edit form surface "locked / wrong PIN"
     }
   },
 

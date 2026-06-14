@@ -18,9 +18,13 @@ interface SkyShellProps {
   meId?: string | null;
   /** resolve a person's photo URL (orb, card, list). */
   photoUrlFor?: (personId: string) => string | undefined;
-  onLightUp: (personId: string) => void;
+  onLightUp: (personId: string, opts?: { editPin?: string }) => void;
   /** Live-mode actions. When omitted (demo), the card is read-only. */
-  onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
+  onSave?: (
+    personId: string,
+    fields: Partial<PersonCardFields>,
+    opts?: { editPin?: string; setEditPin?: string | null },
+  ) => Promise<void> | void;
   onAddRelative?: (args: {
     name: string;
     relationship: RelationshipKind;
@@ -138,11 +142,11 @@ export function SkyShell({
         <ClaimFlow
           person={claimTarget}
           onClose={() => setFocusedId(null)}
-          onLightUp={async (id, fields, photo) => {
+          onLightUp={async (id, fields, opts) => {
             if (onSave) await onSave(id, fields);
-            onLightUp(id);
+            onLightUp(id, { editPin: opts.editPin });
             setFocusedId(null);
-            if (photo && onUploadPhoto) void onUploadPhoto(id, photo); // fire-and-forget
+            if (opts.photo && onUploadPhoto) void onUploadPhoto(id, opts.photo); // fire-and-forget
           }}
         />
       )}

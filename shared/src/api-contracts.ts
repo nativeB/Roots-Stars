@@ -40,6 +40,8 @@ export const addPersonRequest = z.object({
       unionType: unionType.optional(),
     })
     .optional(),
+  /** optional edit-lock PIN to set on the new star (4–12 chars). */
+  editPin: z.string().min(4).max(12).optional(),
   clientMutationId: z.string().max(64).optional(),
 });
 export type AddPersonRequest = z.infer<typeof addPersonRequest>;
@@ -49,13 +51,19 @@ export const addPersonResponse = z.object({
   union: unionSchema.optional(),
 });
 
-// PATCH /api/person/:id
+// PATCH /api/person/:id  — editPin proves authority over a locked star
 export const updatePersonRequest = z.object({
   fields: personCardFields.partial(),
+  editPin: z.string().max(12).optional(),
+  /** set/clear/change the lock; sending null clears it (requires current PIN unless host) */
+  setEditPin: z.string().min(4).max(12).nullish(),
   clientMutationId: z.string().max(64).optional(),
 });
 
-// POST /api/person/:id/claim
+// POST /api/person/:id/claim  — optional PIN locks the star to the claimer
+export const claimPersonRequest = z.object({
+  editPin: z.string().min(4).max(12).optional(),
+});
 export const claimPersonResponse = z.object({
   personId: z.string(),
   claimedAt: z.string().datetime(),
@@ -76,3 +84,30 @@ export const setPhotoRequest = z.object({ photoKey: z.string() });
 
 // GET /api/person/:id/photo-url
 export const photoUrlResponse = z.object({ url: z.string().url().nullable() });
+
+// ── Back office (host-only) ──
+
+export const duesStatus = z.enum(['none', 'unpaid', 'partial', 'paid']);
+export type DuesStatus = z.infer<typeof duesStatus>;
+
+/** One row in the host's bookkeeping view: a person + their admin-only fields. */
+export const adminRow = z.object({
+  personId: z.string(),
+  name: z.string(),
+  duesStatus,
+  duesAmount: z.number().int().nullable(),
+  note: z.string().nullable(),
+  contact: z.string().nullable(),
+});
+export type AdminRow = z.infer<typeof adminRow>;
+
+// GET /api/admin/ledger  (host token) → all rows
+export const adminLedgerResponse = z.object({ rows: z.array(adminRow) });
+
+// PATCH /api/admin/person/:id  (host token) — update admin-only fields
+export const adminUpdateRequest = z.object({
+  duesStatus: duesStatus.optional(),
+  duesAmount: z.number().int().min(0).max(10_000_000).nullish(),
+  note: z.string().max(500).nullish(),
+  contact: z.string().max(200).nullish(),
+});

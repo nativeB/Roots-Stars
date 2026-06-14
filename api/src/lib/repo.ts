@@ -1,7 +1,25 @@
+import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import type { PersonCardFields, RelationshipKind, UnionType } from '@roots/shared';
 import { prisma } from '../db.js';
 import { serializePerson, serializeUnion, type FamilyScope } from './scope.js';
+
+const hashPin = (pin: string) => createHash('sha256').update('pin:' + pin).digest('hex');
+
+/**
+ * Authority to edit/delete a person: the host always may; otherwise an unlocked
+ * star is open (collaborative seeding), and a locked star needs the matching PIN.
+ * Returns true if allowed.
+ */
+async function mayEdit(
+  scope: FamilyScope,
+  person: { editPinHash: string | null },
+  editPin?: string,
+): Promise<boolean> {
+  if (scope.isHost) return true;
+  if (!person.editPinHash) return true; // open by default
+  return Boolean(editPin) && hashPin(editPin as string) === person.editPinHash;
+}
 
 /**
  * The ONLY place Person/Union/Edit are queried. Every call injects
@@ -72,6 +90,7 @@ export async function addPerson(
   scope: FamilyScope,
   fields: PersonCardFields,
   attach?: AttachSpec,
+  editPin?: string,
 ) {
   return prisma.$transaction(async (tx) => {
     const assertInFamily = async (id: string) => {
@@ -110,6 +129,7 @@ export async function addPerson(
         familyId: scope.familyId,
         claimedByDeviceId: null,
         name: fields.name,
+        editPinHash: editPin ? hashPin(editPin) : null,
       },
     });
 
@@ -171,26 +191,40 @@ export async function addPerson(
   });
 }
 
+export type UpdateResult =
+  | { ok: true; person: ReturnType<typeof serializePerson> }
+  | { ok: false; reason: 'not_found' | 'locked' };
+
 export async function updatePerson(
   scope: FamilyScope,
   personId: string,
   fields: Partial<PersonCardFields>,
-) {
-  return prisma.$transaction(async (tx) => {
-    const res = await tx.person.updateMany({
+  opts: { editPin?: string; setEditPin?: string | null } = {},
+): Promise<UpdateResult> {
+  return prisma.$transaction(async (tx): Promise<UpdateResult> => {
+    const target = await tx.person.findFirst({
       where: { id: personId, familyId: scope.familyId },
-      data: personData(fields),
+      select: { id: true, editPinHash: true },
     });
-    if (res.count === 0) return null;
+    if (!target) return { ok: false, reason: 'not_found' };
+    if (!(await mayEdit(scope, target, opts.editPin))) return { ok: false, reason: 'locked' };
+
+    const data: Prisma.PersonUncheckedUpdateInput = personData(fields);
+    // set/clear/change the lock (only the authorized editor reaches here)
+    if (opts.setEditPin !== undefined) {
+      data.editPinHash = opts.setEditPin ? hashPin(opts.setEditPin) : null;
+    }
+
+    await tx.person.updateMany({ where: { id: personId, familyId: scope.familyId }, data });
     await logEdit(tx, scope, 'person', personId, 'updated', fields);
     const p = await tx.person.findFirstOrThrow({
       where: { id: personId, familyId: scope.familyId },
     });
-    return serializePerson(p);
+    return { ok: true, person: serializePerson(p) };
   });
 }
 
-export async function claimPerson(scope: FamilyScope, personId: string) {
+export async function claimPerson(scope: FamilyScope, personId: string, editPin?: string) {
   return prisma.$transaction(async (tx) => {
     const target = await tx.person.findFirst({
       where: { id: personId, familyId: scope.familyId },
@@ -200,7 +234,12 @@ export async function claimPerson(scope: FamilyScope, personId: string) {
     const claimedAt = new Date();
     await tx.person.updateMany({
       where: { id: personId, familyId: scope.familyId },
-      data: { claimedByDeviceId: scope.deviceId ?? 'unknown', claimedAt },
+      data: {
+        claimedByDeviceId: scope.deviceId ?? 'unknown',
+        claimedAt,
+        // optionally lock the star to the claimer in the same step
+        ...(editPin ? { editPinHash: hashPin(editPin) } : {}),
+      },
     });
     await logEdit(tx, scope, 'person', personId, 'claimed');
     return { personId, claimedAt: claimedAt.toISOString() };
@@ -223,13 +262,64 @@ export async function getPersonPhotoKey(scope: FamilyScope, personId: string) {
   return p?.photoKey ?? null;
 }
 
-export async function deletePerson(scope: FamilyScope, personId: string) {
-  return prisma.$transaction(async (tx) => {
-    const res = await tx.person.deleteMany({
+export type DeleteResult = 'ok' | 'not_found' | 'locked';
+
+export async function deletePerson(
+  scope: FamilyScope,
+  personId: string,
+  editPin?: string,
+): Promise<DeleteResult> {
+  return prisma.$transaction(async (tx): Promise<DeleteResult> => {
+    const target = await tx.person.findFirst({
       where: { id: personId, familyId: scope.familyId },
+      select: { id: true, editPinHash: true },
     });
-    if (res.count === 0) return false;
+    if (!target) return 'not_found';
+    if (!(await mayEdit(scope, target, editPin))) return 'locked';
+    await tx.person.deleteMany({ where: { id: personId, familyId: scope.familyId } });
     await logEdit(tx, scope, 'person', personId, 'deleted');
-    return true;
+    return 'ok';
   });
+}
+
+// ── Back office (host-only) ──
+
+export async function getAdminLedger(scope: FamilyScope) {
+  const people = await prisma.person.findMany({
+    where: { familyId: scope.familyId },
+    orderBy: { name: 'asc' },
+    include: { admin: true },
+  });
+  return people.map((p) => ({
+    personId: p.id,
+    name: p.name,
+    duesStatus: (p.admin?.duesStatus as 'none' | 'unpaid' | 'partial' | 'paid') ?? 'none',
+    duesAmount: p.admin?.duesAmount ?? null,
+    note: p.admin?.note ?? null,
+    contact: p.admin?.contact ?? null,
+  }));
+}
+
+export async function updateAdmin(
+  scope: FamilyScope,
+  personId: string,
+  patch: {
+    duesStatus?: 'none' | 'unpaid' | 'partial' | 'paid';
+    duesAmount?: number | null;
+    note?: string | null;
+    contact?: string | null;
+  },
+) {
+  // verify the person belongs to this family before upserting admin data
+  const person = await prisma.person.findFirst({
+    where: { id: personId, familyId: scope.familyId },
+    select: { id: true },
+  });
+  if (!person) return false;
+  await prisma.personAdmin.upsert({
+    where: { personId },
+    create: { personId, familyId: scope.familyId, ...patch },
+    update: patch,
+  });
+  return true;
 }

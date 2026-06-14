@@ -70,8 +70,8 @@ export function ConstellationView({ slug }: { slug: string }) {
         familyName={familyName}
         meId={meId}
         photoUrlFor={(id) => photoUrls[id]}
-        onLightUp={(id) => void claim(id)}
-        onSave={(id, fields) => updatePerson(id, fields)}
+        onLightUp={(id, opts) => void claim(id, opts?.editPin)}
+        onSave={(id, fields, opts) => updatePerson(id, fields, opts)}
         onAddRelative={async (args) => {
           await addRelative(args);
         }}

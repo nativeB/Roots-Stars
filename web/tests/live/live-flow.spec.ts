@@ -109,3 +109,54 @@ test('a second device sees a claim live, without refreshing', async ({ browser }
   await ctxA.close();
   await ctxB.close();
 });
+
+test('locking a star with a PIN blocks edits without it', async ({ page }) => {
+  await page.goto(invite);
+  await page.getByRole('button', { name: /Got it/ }).click();
+
+  // claim Carol (unclaimed in the seed) with a lock PIN
+  await star(page, 'Carol').click();
+  await expect(page.getByTestId('claim-name')).toBeVisible();
+  await page.getByTestId('lock-toggle').click();
+  await page.getByTestId('lock-pin').fill('1357');
+  await page.getByTestId('light-it-up').click();
+  await expect(star(page, 'Carol')).toHaveAttribute('data-claimed', 'true', { timeout: 5000 });
+
+  // editing now requires the PIN; a wrong one is rejected
+  await star(page, 'Carol').click();
+  await page.getByTestId('edit-person').click();
+  await expect(page.getByTestId('unlock-pin')).toBeVisible();
+  await page.locator('input').first().fill('Carol The Locked');
+  await page.getByTestId('unlock-pin').fill('0000');
+  await page.getByTestId('save-person').click();
+  await expect(page.getByTestId('lock-error')).toBeVisible();
+
+  // the correct PIN saves
+  await page.getByTestId('unlock-pin').fill('1357');
+  await page.getByTestId('save-person').click();
+  await expect(star(page, 'Carol The Locked')).toBeVisible({ timeout: 5000 });
+});
+
+test('host back office: sign in, see the ledger, set dues', async ({ page }) => {
+  // wrong secret is rejected
+  await page.goto(`${invite}/manage`);
+  await page.getByTestId('host-secret').fill('nope');
+  await page.getByTestId('host-signin').click();
+  await expect(page.getByText(/didn’t work/)).toBeVisible();
+
+  // correct secret unlocks the ledger
+  await page.getByTestId('host-secret').fill('dev-host-secret');
+  await page.getByTestId('host-signin').click();
+  await expect(page.getByTestId('ledger')).toBeVisible();
+  const rows = page.locator('[data-testid="ledger"] tbody tr');
+  expect(await rows.count()).toBeGreaterThan(0);
+
+  // set a dues status; reload + re-auth → it persisted
+  const firstDues = page.locator('select[data-testid^="dues-"]').first();
+  await firstDues.selectOption('paid');
+  await page.waitForTimeout(400);
+  await page.reload();
+  await page.getByTestId('host-secret').fill('dev-host-secret');
+  await page.getByTestId('host-signin').click();
+  await expect(page.locator('select[data-testid^="dues-"]').first()).toHaveValue('paid');
+});

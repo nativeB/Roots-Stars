@@ -5,8 +5,13 @@ import { PhotoPicker } from './PhotoPicker';
 
 interface EditPersonFormProps {
   person: Person;
-  onSave: (fields: Partial<PersonCardFields>) => Promise<void> | void;
+  onSave: (
+    fields: Partial<PersonCardFields>,
+    opts?: { editPin?: string; setEditPin?: string | null },
+  ) => Promise<void> | void;
   onCancel: () => void;
+  /** the host can edit locked stars without a PIN */
+  isHost?: boolean;
   /** Upload an already-compressed photo blob; resolves when stored. Omitted if disabled. */
   onUploadPhoto?: (blob: Blob) => Promise<void>;
   /** the person's current (presigned) photo URL, if any */
@@ -27,12 +32,19 @@ export function EditPersonForm({
   person,
   onSave,
   onCancel,
+  isHost,
   onUploadPhoto,
   currentPhotoUrl,
   onDelete,
   people = [],
 }: EditPersonFormProps) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // edit-lock UI: a locked star needs its PIN (unless host); anyone can set/clear a lock.
+  const [unlockPin, setUnlockPin] = useState('');
+  const [lockChoice, setLockChoice] = useState<'keep' | 'set' | 'clear'>('keep');
+  const [newPin, setNewPin] = useState('');
+  const [lockError, setLockError] = useState<string | null>(null);
+  const needsPin = person.locked && !isHost;
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoMsg, setPhotoMsg] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>({
@@ -99,9 +111,24 @@ export function EditPersonForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setLockError(null);
+    if (needsPin && unlockPin.length < 4) {
+      setLockError('Enter this star’s PIN to save your changes.');
+      return;
+    }
+    if (lockChoice === 'set' && newPin.length < 4) {
+      setLockError('Choose a PIN of at least 4 digits, or cancel the lock.');
+      return;
+    }
+    const setEditPin =
+      lockChoice === 'set' ? newPin : lockChoice === 'clear' ? null : undefined;
     setSaving(true);
     try {
-      await onSave(toFields());
+      await onSave(toFields(), { editPin: needsPin ? unlockPin : undefined, setEditPin });
+    } catch (err) {
+      // server says locked / wrong PIN
+      const msg = err instanceof Error ? err.message : '';
+      setLockError(msg.includes('403') ? 'That PIN didn’t match. Try again.' : 'Couldn’t save.');
     } finally {
       setSaving(false);
     }
@@ -231,6 +258,93 @@ export function EditPersonForm({
           )}
         </motion.div>
       )}
+
+      {/* edit lock — PIN to unlock a locked star (members), and set/clear control */}
+      {needsPin && (
+        <div className="rounded-xl border border-glow-gold/30 bg-glow-gold/5 p-3">
+          <label className="mb-1.5 block text-sm text-starlight" htmlFor="unlock-pin">
+            🔒 This star is locked — enter its PIN to save
+          </label>
+          <input
+            id="unlock-pin"
+            value={unlockPin}
+            onChange={(e) => setUnlockPin(e.target.value.replace(/\D/g, '').slice(0, 12))}
+            inputMode="numeric"
+            autoComplete="off"
+            className={`${inputCls} tracking-[0.3em]`}
+            data-testid="unlock-pin"
+          />
+        </div>
+      )}
+
+      {!needsPin && (
+        <div className="text-sm">
+          {lockChoice === 'keep' && (
+            <div className="flex gap-3">
+              {!person.locked && (
+                <button
+                  type="button"
+                  onClick={() => setLockChoice('set')}
+                  className="text-aurora-violet underline"
+                  data-testid="lock-set"
+                >
+                  🔒 Lock my edits
+                </button>
+              )}
+              {person.locked && (
+                <button
+                  type="button"
+                  onClick={() => setLockChoice('clear')}
+                  className="text-muted underline"
+                  data-testid="lock-clear"
+                >
+                  Unlock this star
+                </button>
+              )}
+            </div>
+          )}
+          {lockChoice === 'set' && (
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <label className="mb-1.5 block text-muted" htmlFor="new-pin">
+                Set a PIN (4–12 digits) — only you can edit after this
+              </label>
+              <input
+                id="new-pin"
+                value={newPin}
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                inputMode="numeric"
+                autoComplete="off"
+                className={`${inputCls} tracking-[0.3em]`}
+                data-testid="new-pin"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setLockChoice('keep');
+                  setNewPin('');
+                }}
+                className="mt-2 text-xs text-muted underline"
+              >
+                Cancel lock
+              </button>
+            </div>
+          )}
+          {lockChoice === 'clear' && (
+            <p className="text-muted">
+              This star will be unlocked on save.{' '}
+              <button
+                type="button"
+                onClick={() => setLockChoice('keep')}
+                className="underline"
+              >
+                Keep it locked
+              </button>
+            </p>
+          )}
+        </div>
+      )}
+
+      {lockError && <p className="text-sm text-red-400" data-testid="lock-error">{lockError}</p>}
 
       <div className="flex gap-2 pt-2">
         <button

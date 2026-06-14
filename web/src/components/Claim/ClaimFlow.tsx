@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Person, PersonCardFields } from '@roots/shared';
 import { PhotoPicker } from '../Card/PhotoPicker';
+import { EditLockField } from './EditLockField';
 
 interface ClaimFlowProps {
   person: Person;
   onClose: () => void;
-  /** Save details (if any) + optional photo, then light the star. */
+  /** Save details (if any) + optional photo + optional edit-lock PIN, then light the star. */
   onLightUp: (
     personId: string,
     fields: Partial<PersonCardFields>,
-    photo?: Blob,
+    opts: { photo?: Blob; editPin?: string },
   ) => Promise<void> | void;
 }
 
@@ -27,6 +28,7 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
   const [emoji, setEmoji] = useState(person.signatureEmoji ?? '✦');
   const [dish, setDish] = useState(person.signatureDish ?? '');
   const [photo, setPhoto] = useState<Blob | undefined>(undefined);
+  const [editPin, setEditPin] = useState<string | undefined>(undefined);
   const [saving, setSaving] = useState(false);
 
   async function light() {
@@ -40,7 +42,7 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
           signatureEmoji: emoji,
           signatureDish: dish.trim() || null,
         },
-        photo,
+        { photo, editPin },
       );
     } finally {
       setSaving(false);
@@ -131,6 +133,8 @@ export function ClaimFlow({ person, onClose, onLightUp }: ClaimFlowProps) {
               className="w-full rounded-xl border border-white/12 bg-white/[0.04] px-4 py-3.5 font-body text-[16px] text-starlight placeholder:text-muted/50 outline-none transition focus:border-glow-gold/70 focus:bg-white/[0.06]"
             />
           </div>
+
+          <EditLockField onChange={setEditPin} />
         </div>
 
         <motion.button

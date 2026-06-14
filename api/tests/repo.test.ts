@@ -4,7 +4,10 @@ import { prisma } from '../src/db.js';
 import {
   addPerson,
   claimPerson,
+  deletePerson,
+  getAdminLedger,
   getSnapshot,
+  updateAdmin,
   updatePerson,
 } from '../src/lib/repo.js';
 import { redactForViewer, type FamilyScope } from '../src/lib/scope.js';
@@ -85,7 +88,7 @@ describe('family isolation (RLS replacement)', () => {
     const secret = await addPerson(scopeB, { name: 'SecretPerson' } as never);
     // famA scope tries to update famB's person
     const result = await updatePerson(scopeA, secret.person.id, { name: 'HACKED' } as never);
-    expect(result).toBeNull();
+    expect(result.ok).toBe(false);
     // confirm unchanged
     const still = await prisma.person.findUnique({ where: { id: secret.person.id } });
     expect(still?.name).toBe('SecretPerson');
@@ -116,5 +119,68 @@ describe('minor redaction (privacy)', () => {
     const hostView = redactForViewer(fromSnap, scopeAHost);
     expect(hostView.birthYear).toBe(2015);
     expect(hostView.bio).toBe('loves foxes');
+  });
+});
+
+describe('optional edit-lock PIN', () => {
+  it('open stars edit freely; locked stars need the PIN; host always edits', async () => {
+    // unlocked → anyone in family can edit
+    const open = await addPerson(scopeA, { name: 'Open' } as never);
+    expect(open.person.locked).toBe(false);
+    const r1 = await updatePerson(scopeA, open.person.id, { name: 'Open2' } as never);
+    expect(r1.ok).toBe(true);
+
+    // claim with a PIN → locked
+    const mine = await addPerson(scopeA, { name: 'Mine' } as never);
+    await claimPerson(scopeA, mine.person.id, '1234');
+    const snap = await getSnapshot(scopeA);
+    expect(snap.people.find((p) => p.id === mine.person.id)!.locked).toBe(true);
+
+    // wrong/no PIN from a member → blocked
+    const noPin = await updatePerson(scopeA, mine.person.id, { name: 'Hacked' } as never);
+    expect(noPin).toEqual({ ok: false, reason: 'locked' });
+    const wrong = await updatePerson(scopeA, mine.person.id, { name: 'Hacked' } as never, {
+      editPin: '9999',
+    });
+    expect(wrong.ok).toBe(false);
+
+    // correct PIN → allowed
+    const right = await updatePerson(scopeA, mine.person.id, { name: 'Renamed' } as never, {
+      editPin: '1234',
+    });
+    expect(right.ok).toBe(true);
+
+    // host bypasses the lock
+    const byHost = await updatePerson(scopeAHost, mine.person.id, { name: 'HostEdit' } as never);
+    expect(byHost.ok).toBe(true);
+
+    // delete is gated the same way
+    const delNoPin = await deletePerson(scopeA, mine.person.id);
+    expect(delNoPin).toBe('locked');
+    const delHost = await deletePerson(scopeAHost, mine.person.id);
+    expect(delHost).toBe('ok');
+  });
+});
+
+describe('back office (host-only bookkeeping)', () => {
+  it('stores admin fields, isolated per family, never in the member snapshot', async () => {
+    const p = await addPerson(scopeA, { name: 'Dues Person' } as never);
+    await updateAdmin(scopeA, p.person.id, { duesStatus: 'paid', duesAmount: 5000, note: 'ok' });
+
+    const ledger = await getAdminLedger(scopeA);
+    const row = ledger.find((r) => r.personId === p.person.id)!;
+    expect(row.duesStatus).toBe('paid');
+    expect(row.duesAmount).toBe(5000);
+    expect(row.note).toBe('ok');
+
+    // family B can't write to family A's person
+    const cross = await updateAdmin(scopeB, p.person.id, { duesStatus: 'unpaid' });
+    expect(cross).toBe(false);
+
+    // admin data never leaks into the normal member snapshot shape
+    const snap = await getSnapshot(scopeA);
+    const snapPerson = snap.people.find((sp) => sp.id === p.person.id)!;
+    expect('duesStatus' in snapPerson).toBe(false);
+    expect('note' in snapPerson).toBe(false);
   });
 });

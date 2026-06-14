@@ -37,6 +37,7 @@ export function serializePerson(p: DbPerson): Person {
     isMinor: p.isMinor,
     claimed: p.claimedByDeviceId !== null,
     claimedAt: p.claimedAt ? p.claimedAt.toISOString() : null,
+    locked: p.editPinHash !== null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };

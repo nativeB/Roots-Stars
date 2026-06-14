@@ -61,14 +61,21 @@ export const api = {
       { method: 'POST', body: JSON.stringify(body) },
     ),
 
-  updatePerson: (id: string, fields: Partial<PersonCardFields>, clientMutationId?: string) =>
+  updatePerson: (
+    id: string,
+    fields: Partial<PersonCardFields>,
+    opts?: { editPin?: string; setEditPin?: string | null; clientMutationId?: string },
+  ) =>
     req<SnapshotResponse['people'][number]>(`/person/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ fields, clientMutationId }),
+      body: JSON.stringify({ fields, ...opts }),
     }),
 
-  claimPerson: (id: string) =>
-    req<{ personId: string; claimedAt: string }>(`/person/${id}/claim`, { method: 'POST' }),
+  claimPerson: (id: string, editPin?: string) =>
+    req<{ personId: string; claimedAt: string }>(`/person/${id}/claim`, {
+      method: 'POST',
+      body: editPin ? JSON.stringify({ editPin }) : undefined,
+    }),
 
   claimHost: (familyId: string, secret: string) =>
     req<{ token: string }>(`/family/${familyId}/host`, {

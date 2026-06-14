@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import {
   addPersonRequest,
+  adminUpdateRequest,
   claimHostRequest,
+  claimPersonRequest,
   presignRequest,
   setPhotoRequest,
   updatePersonRequest,
@@ -9,14 +11,16 @@ import {
 import { createHash } from 'node:crypto';
 import { prisma } from './db.js';
 import { signToken } from './auth/token.js';
-import { requireScope } from './auth/guards.js';
+import { requireScope, requireHost } from './auth/guards.js';
 import {
   addPerson,
   claimPerson,
   deletePerson,
+  getAdminLedger,
   getPersonPhotoKey,
   getSnapshot,
   setPhotoKey,
+  updateAdmin,
   updatePerson,
 } from './lib/repo.js';
 import { redactForViewer } from './lib/scope.js';
@@ -88,7 +92,12 @@ export async function registerRoutes(app: FastifyInstance) {
     const parsed = addPersonRequest.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const { person, union } = await addPerson(scope, parsed.data.fields, parsed.data.attach);
+    const { person, union } = await addPerson(
+      scope,
+      parsed.data.fields,
+      parsed.data.attach,
+      parsed.data.editPin,
+    );
     const cmid = parsed.data.clientMutationId;
     if (union) broadcast.unionAdded(scope.familyId, { union, clientMutationId: cmid });
     broadcast.personAdded(scope.familyId, { person, clientMutationId: cmid });
@@ -101,20 +110,30 @@ export async function registerRoutes(app: FastifyInstance) {
     const parsed = updatePersonRequest.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const updated = await updatePerson(scope, req.params.id, parsed.data.fields);
-    if (!updated) return reply.code(404).send({ error: 'Not found' });
+    const result = await updatePerson(scope, req.params.id, parsed.data.fields, {
+      editPin: parsed.data.editPin,
+      setEditPin: parsed.data.setEditPin,
+    });
+    if (!result.ok) {
+      if (result.reason === 'locked') {
+        return reply.code(403).send({ error: 'locked', message: 'This star is locked. Enter its PIN to edit.' });
+      }
+      return reply.code(404).send({ error: 'Not found' });
+    }
     broadcast.personUpdated(scope.familyId, {
-      personId: updated.id,
-      fields: updated,
+      personId: result.person.id,
+      fields: result.person,
       clientMutationId: parsed.data.clientMutationId,
     });
-    return updated;
+    return result.person;
   });
 
   app.post<{ Params: { id: string } }>('/api/person/:id/claim', async (req, reply) => {
     const scope = await requireScope(req, reply);
     if (!scope) return;
-    const result = await claimPerson(scope, req.params.id);
+    const parsed = claimPersonRequest.safeParse(req.body ?? {});
+    const editPin = parsed.success ? parsed.data.editPin : undefined;
+    const result = await claimPerson(scope, req.params.id, editPin);
     if (!result) return reply.code(404).send({ error: 'Not found' });
     broadcast.personClaimed(scope.familyId, result);
     return result;
@@ -123,8 +142,14 @@ export async function registerRoutes(app: FastifyInstance) {
   app.delete<{ Params: { id: string } }>('/api/person/:id', async (req, reply) => {
     const scope = await requireScope(req, reply);
     if (!scope) return;
-    const ok = await deletePerson(scope, req.params.id);
-    if (!ok) return reply.code(404).send({ error: 'Not found' });
+    const editPin = typeof (req.body as { editPin?: string })?.editPin === 'string'
+      ? (req.body as { editPin?: string }).editPin
+      : undefined;
+    const result = await deletePerson(scope, req.params.id, editPin);
+    if (result === 'not_found') return reply.code(404).send({ error: 'Not found' });
+    if (result === 'locked') {
+      return reply.code(403).send({ error: 'locked', message: 'This star is locked.' });
+    }
     broadcast.personDeleted(scope.familyId, { personId: req.params.id });
     return { ok: true };
   });
@@ -175,6 +200,26 @@ export async function registerRoutes(app: FastifyInstance) {
     const scope = await requireScope(req, reply);
     if (!scope) return;
     return getSnapshot(scope);
+  });
+
+  // ── Back office (host-only) ──
+  // Admin-only bookkeeping. Gated by the host token; this data is NEVER sent to
+  // normal members (the member snapshot endpoint doesn't include it).
+  app.get('/api/admin/ledger', async (req, reply) => {
+    const scope = await requireHost(req, reply);
+    if (!scope) return;
+    const rows = await getAdminLedger(scope);
+    return { rows };
+  });
+
+  app.patch<{ Params: { id: string } }>('/api/admin/person/:id', async (req, reply) => {
+    const scope = await requireHost(req, reply);
+    if (!scope) return;
+    const parsed = adminUpdateRequest.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const ok = await updateAdmin(scope, req.params.id, parsed.data);
+    if (!ok) return reply.code(404).send({ error: 'Not found' });
+    return { ok: true };
   });
 
   void env; // env validated at import time

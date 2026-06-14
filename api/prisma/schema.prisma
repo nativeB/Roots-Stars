@@ -55,14 +55,38 @@ model Person {
   claimedByDeviceId String?
   claimedAt         DateTime?
 
+  // Optional, opt-in edit lock. When set, only the PIN holder (or the host) may
+  // edit/delete this star. Never required — leaving it null keeps the star open
+  // so a relative can pre-fill others' details. Stored hashed, never returned.
+  editPinHash String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  unionsAsA Union[] @relation("PartnerA")
-  unionsAsB Union[] @relation("PartnerB")
+  unionsAsA Union[]      @relation("PartnerA")
+  unionsAsB Union[]      @relation("PartnerB")
+  admin     PersonAdmin?
 
   @@index([familyId])
   @@index([parentUnionId])
+}
+
+// Host-only bookkeeping per person (dues, a private note, a contact). Never sent
+// to normal members — only the back office (host-gated) reads/writes this.
+model PersonAdmin {
+  id       String @id @default(cuid())
+  personId String @unique
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  familyId String
+
+  duesStatus String  @default("none") // none | unpaid | partial | paid
+  duesAmount Int? // minor units (e.g. cents), optional
+  note       String? // free-text admin note
+  contact    String? // admin-only email/phone
+
+  updatedAt DateTime @updatedAt
+
+  @@index([familyId])
 }
 
 model Union {

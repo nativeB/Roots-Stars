@@ -9,7 +9,11 @@ interface PersonCardProps {
   onClose: () => void;
   onLightUp: (personId: string) => void;
   /** When provided, enables Edit + Add-relative actions (live mode). */
-  onSave?: (personId: string, fields: Partial<PersonCardFields>) => Promise<void> | void;
+  onSave?: (
+    personId: string,
+    fields: Partial<PersonCardFields>,
+    opts?: { editPin?: string; setEditPin?: string | null },
+  ) => Promise<void> | void;
   onAddRelative?: (anchor: Person) => void;
   onUploadPhoto?: (personId: string, blob: Blob) => Promise<void>;
   onDelete?: (personId: string) => Promise<void> | void;
@@ -76,8 +80,8 @@ export function PersonCard({
             {editing && onSave ? (
               <EditPersonForm
                 person={person}
-                onSave={async (fields) => {
-                  await onSave(person.id, fields);
+                onSave={async (fields, opts) => {
+                  await onSave(person.id, fields, opts);
                   setEditing(false);
                 }}
                 onCancel={() => setEditing(false)}
