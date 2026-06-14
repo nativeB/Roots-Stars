@@ -29,7 +29,13 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 
-export const env = schema.parse(process.env);
+// Hosting platforms (e.g. Railway) sometimes inject vars as empty strings.
+// Treat "" as absent so schema .default()s apply instead of failing validation.
+const cleaned = Object.fromEntries(
+  Object.entries(process.env).filter(([, v]) => v !== ''),
+);
+
+export const env = schema.parse(cleaned);
 export const r2Configured = Boolean(
   env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_ENDPOINT,
 );
