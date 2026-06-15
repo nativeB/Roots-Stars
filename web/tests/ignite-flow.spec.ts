@@ -6,7 +6,7 @@ import { test, expect } from '@playwright/test';
  * the real claim + cross-device ignite.
  */
 test('a relative can light up their star', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
 
   // Adwoa starts unclaimed
   const adwoa = page.locator('[data-testid="star-adwoa"]');
@@ -26,7 +26,7 @@ test('a relative can light up their star', async ({ page }) => {
 });
 
 test('list view shows everyone and their relationships (a11y fallback)', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   await page.getByRole('button', { name: /List/ }).click();
 
   const list = page.getByRole('region', { name: /list view/i });

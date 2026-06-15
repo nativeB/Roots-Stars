@@ -15,7 +15,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('the populated constellation', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   await page.locator('[data-testid="sky-canvas"]').waitFor();
   // let the fit-to-view settle
   await page.waitForTimeout(400);
@@ -23,7 +23,7 @@ test('the populated constellation', async ({ page }) => {
 });
 
 test('a person card', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   await page.locator('g[aria-label^="Kwame"]').click(); // claimed → read-only card
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.waitForTimeout(300);
@@ -31,7 +31,7 @@ test('a person card', async ({ page }) => {
 });
 
 test('the claim flow ("Light your star")', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   await page.locator('g[aria-label^="Adwoa"]').click(); // unclaimed → claim flow
   await expect(page.getByTestId('claim-name')).toBeVisible();
   await page.waitForTimeout(300);
@@ -39,7 +39,7 @@ test('the claim flow ("Light your star")', async ({ page }) => {
 });
 
 test('the accessible list view', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   await page.getByRole('button', { name: /List/ }).click();
   await expect(page.getByRole('region', { name: /list view/i })).toBeVisible();
   await expect(page).toHaveScreenshot('list-view.png', { fullPage: false });

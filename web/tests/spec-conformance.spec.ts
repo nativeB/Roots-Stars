@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('design tokens (§6)', () => {
   test('night-sky base color and token CSS vars are wired', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/demo');
     const vars = await page.evaluate(() => {
       const s = getComputedStyle(document.documentElement);
       return {
@@ -30,13 +30,13 @@ test.describe('design tokens (§6)', () => {
   });
 
   test('base background is the deep indigo-plum, never pure black', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/demo');
     const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     expect(bg).toBe('rgb(11, 10, 31)'); // #0B0A1F
   });
 
   test('display type is Fraunces; threads use a teal→violet gradient', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/demo');
     const h1 = page.locator('h1');
     const family = await h1.evaluate((el) => getComputedStyle(el).fontFamily);
     expect(family).toContain('Fraunces');
@@ -50,7 +50,7 @@ test.describe('design tokens (§6)', () => {
   });
 
   test('claimed stars are gold, unclaimed are dim lavender', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/demo');
     // Kwame is claimed in the fixture: group flagged claimed, core uses gold gradient
     await expect(page.locator('[data-testid="star-kwame"]')).toHaveAttribute(
       'data-claimed',
@@ -77,7 +77,7 @@ test.describe('design tokens (§6)', () => {
 
 test.describe('privacy (§10)', () => {
   test('page is noindex / nofollow', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/demo');
     const robots = await page.locator('meta[name="robots"]').getAttribute('content');
     expect(robots).toContain('noindex');
     expect(robots).toContain('nofollow');

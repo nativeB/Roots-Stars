@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 /** Accessibility floor (§11): axe scan, keyboard focus, list-view fallback. */
 
 test('no serious/critical axe violations on the sky', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa'])
     .analyze();
@@ -15,7 +15,7 @@ test('no serious/critical axe violations on the sky', async ({ page }) => {
 });
 
 test('stars are keyboard-focusable and openable', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   // tab to the first focusable star and activate it
   const firstStar = page.locator('g[role="button"]').first();
   await firstStar.focus();

@@ -14,7 +14,7 @@ async function openClaimAndLight(page: import('@playwright/test').Page) {
 
 test('ignite shows the ripple and brightens the sky (full motion)', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.goto('/');
+  await page.goto('/demo');
 
   await openClaimAndLight(page);
 
@@ -32,7 +32,7 @@ test('ignite shows the ripple and brightens the sky (full motion)', async ({ pag
 
 test('reduced-motion: instant gold, no ripple', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  await page.goto('/demo');
 
   await openClaimAndLight(page);
 

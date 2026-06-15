@@ -27,7 +27,7 @@ async function makeImage(page: import('@playwright/test').Page): Promise<Buffer>
  */
 
 test('claiming makes a home star with a "you" marker and Find me', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
 
   await page.locator('g[aria-label^="Adwoa"]').click();
   await page.getByTestId('light-it-up').click();
@@ -48,7 +48,7 @@ test('claiming makes a home star with a "you" marker and Find me', async ({ page
 });
 
 test('top-level "Add your star" lets a new visitor self-attach', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
 
   await page.getByTestId('add-your-star').click();
   await page.getByTestId('your-name').fill('Kojo Jr');
@@ -66,7 +66,7 @@ test('top-level "Add your star" lets a new visitor self-attach', async ({ page }
 });
 
 test('a relative can add a photo while claiming their star', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
   await page.locator('g[aria-label^="Adwoa"]').click();
   await expect(page.getByTestId('claim-name')).toBeVisible();
 
@@ -85,7 +85,7 @@ test('a relative can add a photo while claiming their star', async ({ page }) =>
 });
 
 test('takes-after shows in the card after editing', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/demo');
 
   // Kwame is claimed → read-only card → edit
   await page.locator('g[aria-label^="Kwame"]').click();
