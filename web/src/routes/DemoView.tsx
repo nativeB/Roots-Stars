@@ -159,6 +159,7 @@ export function DemoView() {
       onSave={save}
       onUploadPhoto={async (id, blob) => setLocalPhoto(id, blob)}
       onAddYourStar={addYourStar}
+      force2D
     />
   );
 }

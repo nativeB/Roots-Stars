@@ -1,6 +1,10 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import type { Person, PersonCardFields, RelationshipKind, Union } from '@roots/shared';
 import { Sky } from './Sky/Sky';
+
+// 3D galaxy is heavy (Three.js) — load it only when selected.
+const Galaxy3D = lazy(() => import('./Galaxy/Galaxy3D').then((m) => ({ default: m.Galaxy3D })));
+const USE_GALAXY = (import.meta.env?.VITE_LAYOUT ?? 'galaxy') === 'galaxy';
 import { SkyHeader } from './SkyHeader';
 import { SkyCelebration } from './SkyCelebration';
 import { PersonCard } from './Card/PersonCard';
@@ -40,6 +44,8 @@ interface SkyShellProps {
     relationship: RelationshipKind;
     photo?: Blob;
   }) => Promise<void> | void;
+  /** force the 2D constellation (used by the demo/tests regardless of VITE_LAYOUT) */
+  force2D?: boolean;
   footer?: React.ReactNode;
 }
 
@@ -57,6 +63,7 @@ export function SkyShell({
   onUploadPhoto,
   onDelete,
   onAddYourStar,
+  force2D,
   footer,
 }: SkyShellProps) {
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -86,6 +93,18 @@ export function SkyShell({
         <div className="absolute inset-0 overflow-auto pt-28">
           <AccessibleList people={people} unions={unions} onSelect={setFocusedId} />
         </div>
+      ) : USE_GALAXY && !force2D ? (
+        <Suspense fallback={<div className="absolute inset-0 bg-space-deep" />}>
+          <Galaxy3D
+            people={people}
+            unions={unions}
+            focusedId={focusedId}
+            ignitingId={ignitingId}
+            meId={meId ?? null}
+            photoUrlFor={photoUrlFor}
+            onSelect={(id) => setFocusedId(id || null)}
+          />
+        </Suspense>
       ) : (
         <Sky
           people={people}
