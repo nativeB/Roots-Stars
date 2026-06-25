@@ -4,11 +4,10 @@ import { Billboard, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Person } from '@roots/shared';
 import type { Galaxy3DNode } from '../../layout/galaxyLayout';
+import { useAvatarTexture } from './Avatar3D';
 
-const GOLD = new THREE.Color('#FFD08A');
-const VIOLET = new THREE.Color('#B58CFF');
-const GOLD_HALO = '#FFD08A';
-const VIOLET_HALO = '#B58CFF';
+const GOLD = '#FFD08A';
+const VIOLET = '#B58CFF';
 
 interface Star3DProps {
   node: Galaxy3DNode;
@@ -18,10 +17,15 @@ interface Star3DProps {
   isMe: boolean;
   showLabel: boolean;
   reducedMotion: boolean;
+  photoUrl?: string;
   onSelect: (id: string) => void;
 }
 
-/** One person as a glowing point of light in 3D space. */
+/**
+ * One person as a luminous photo portrait floating in space: a circular face
+ * (their photo, or a warm generated avatar) ringed in gold/violet glow, with
+ * their name beneath. Faces the camera. This is where the "life" lives.
+ */
 export function Star3D({
   node,
   person,
@@ -30,56 +34,55 @@ export function Star3D({
   isMe,
   showLabel,
   reducedMotion,
+  photoUrl,
   onSelect,
 }: Star3DProps) {
   const claimed = person.claimed || igniting;
-  const color = claimed ? GOLD : VIOLET;
-  const halo = claimed ? GOLD_HALO : VIOLET_HALO;
-  const coreRef = useRef<THREE.Mesh>(null);
-  const haloRef = useRef<THREE.Sprite>(null);
-  const baseCore = claimed ? 0.62 : 0.46;
-  const seed = (node.x * 12.9898 + node.y * 78.233 + node.z * 37.719) % 6.283;
+  const ringColor = claimed ? GOLD : VIOLET;
+  const groupRef = useRef<THREE.Group>(null);
+  const avatar = useAvatarTexture(person.name, person.signatureEmoji ?? null, claimed, photoUrl);
+
+  // portrait size: claimed people a touch larger; deceased elders slightly grand
+  const R = (claimed ? 2.0 : 1.7) * (person.isDeceased ? 1.12 : 1);
+  const seed = (node.x * 12.9 + node.y * 78.2 + node.z * 37.7) % 6.28;
 
   useFrame((state) => {
-    if (reducedMotion) return;
+    if (reducedMotion || !groupRef.current) return;
     const t = state.clock.elapsedTime;
-    // gentle twinkle
-    const tw = 0.85 + Math.sin(t * 1.3 + seed) * 0.15;
-    const igniteBoost = igniting ? 1 + Math.max(0, 1 - (t % 2)) * 1.8 : 1;
-    if (coreRef.current) coreRef.current.scale.setScalar(baseCore * tw * igniteBoost);
-    if (haloRef.current) {
-      const h = (claimed ? 3.0 : 2.2) * tw * igniteBoost;
-      haloRef.current.scale.setScalar(h);
-    }
+    const tw = 1 + Math.sin(t * 1.1 + seed) * 0.03; // very gentle breathe
+    const ignite = igniting ? 1 + Math.max(0, 1 - (t % 2)) * 0.6 : 1;
+    groupRef.current.scale.setScalar(tw * ignite);
   });
 
   return (
-    <group position={[node.x, node.y, node.z]}>
-      {/* wide outer glow */}
-      <sprite ref={haloRef} scale={claimed ? 4.4 : 3.2}>
+    <Billboard ref={groupRef} position={[node.x, node.y, node.z]}>
+      {/* outer soft glow halo */}
+      <sprite scale={R * 3.4}>
         <spriteMaterial
           map={glowTexture()}
-          color={halo}
+          color={ringColor}
           transparent
-          opacity={claimed ? 0.75 : 0.5}
+          opacity={claimed ? 0.55 : 0.32}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </sprite>
 
-      {/* tight inner glow for a bright hot center */}
-      <sprite scale={claimed ? 1.7 : 1.3}>
-        <spriteMaterial
-          map={glowTexture()}
-          color={'#FFFFFF'}
-          transparent
-          opacity={claimed ? 0.9 : 0.65}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </sprite>
+      {/* glowing ring around the portrait */}
+      <mesh>
+        <ringGeometry args={[R * 1.02, R * 1.16, 48]} />
+        <meshBasicMaterial color={ringColor} transparent opacity={0.95} side={THREE.DoubleSide} toneMapped={false} />
+      </mesh>
 
-      {/* generous invisible hit sphere so stars are easy to tap */}
+      {/* "you are here" / focus accent ring */}
+      {(isMe || focused) && (
+        <mesh>
+          <ringGeometry args={[R * 1.22, R * 1.4, 48]} />
+          <meshBasicMaterial color={GOLD} transparent opacity={0.85} side={THREE.DoubleSide} toneMapped={false} />
+        </mesh>
+      )}
+
+      {/* the portrait disc — the clickable target */}
       <mesh
         onClick={(e) => {
           e.stopPropagation();
@@ -93,56 +96,43 @@ export function Star3D({
           document.body.style.cursor = 'auto';
         }}
       >
-        <sphereGeometry args={[1.8, 8, 8]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        <circleGeometry args={[R, 48]} />
+        <meshBasicMaterial
+          map={avatar}
+          toneMapped={false}
+          transparent
+          opacity={claimed ? 1 : 0.92}
+        />
       </mesh>
 
-      {/* bright visible core */}
-      <mesh ref={coreRef} scale={baseCore}>
-        <sphereGeometry args={[1, 16, 16]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
-      </mesh>
-
-      {/* "you are here" + focus ring */}
-      {(isMe || focused) && (
-        <Billboard>
-          <mesh>
-            <ringGeometry args={[1.0, 1.12, 32]} />
-            <meshBasicMaterial color={GOLD_HALO} transparent opacity={0.9} side={THREE.DoubleSide} toneMapped={false} />
-          </mesh>
-        </Billboard>
-      )}
-
-      {/* label — only when relevant */}
+      {/* name label under the portrait */}
       {showLabel && (
         <Html
           center
-          distanceFactor={26}
-          position={[0, claimed ? 1.5 : 1.2, 0]}
+          distanceFactor={30}
+          position={[0, -R - 0.9, 0]}
           style={{ pointerEvents: 'none', userSelect: 'none' }}
-          zIndexRange={[10, 0]}
+          zIndexRange={[8, 0]}
         >
           <div
             style={{
               fontFamily: 'Fraunces, serif',
               fontSize: 15,
-              fontWeight: 500,
-              color: claimed ? '#FBF7FF' : '#C9C2EC',
+              fontWeight: 600,
+              color: claimed ? '#FBF7FF' : '#D9D3F2',
               whiteSpace: 'nowrap',
-              textShadow: '0 1px 6px rgba(0,0,0,0.9)',
-              opacity: isMe ? 1 : 0.95,
+              textShadow: '0 1px 8px rgba(0,0,0,0.95), 0 0 2px rgba(0,0,0,0.8)',
             }}
           >
-            {person.signatureEmoji ? `${person.signatureEmoji} ` : ''}
             {person.name}
           </div>
         </Html>
       )}
-    </group>
+    </Billboard>
   );
 }
 
-// a cached radial-gradient glow sprite texture
+// cached radial-gradient glow sprite
 let _glow: THREE.Texture | null = null;
 function glowTexture(): THREE.Texture {
   if (_glow) return _glow;
@@ -151,9 +141,8 @@ function glowTexture(): THREE.Texture {
   c.width = c.height = size;
   const ctx = c.getContext('2d')!;
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  g.addColorStop(0, 'rgba(255,255,255,1)');
-  g.addColorStop(0.25, 'rgba(255,255,255,0.7)');
-  g.addColorStop(0.6, 'rgba(255,255,255,0.15)');
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.3, 'rgba(255,255,255,0.4)');
   g.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);

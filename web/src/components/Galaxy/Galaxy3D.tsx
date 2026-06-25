@@ -31,6 +31,7 @@ export function Galaxy3D({
   focusedId,
   ignitingId,
   meId = null,
+  photoUrlFor,
   onSelect,
 }: Galaxy3DProps) {
   const reducedMotion = useReducedMotion() ?? false;
@@ -64,7 +65,9 @@ export function Galaxy3D({
   }, [focusedId, galaxy]);
 
   const camDist = galaxy.radius * 1.9 + 18;
-  const labelsAll = people.length <= 24;
+  // names are part of the life — show them on every portrait (distanceFactor
+  // shrinks them with depth so the field stays readable).
+  const labelsAll = true;
 
   return (
     <div className="absolute inset-0">
@@ -102,6 +105,7 @@ export function Galaxy3D({
               isMe={meId === n.personId}
               showLabel={showLabel}
               reducedMotion={reducedMotion}
+              photoUrl={photoUrlFor?.(n.personId)}
               onSelect={onSelect}
             />
           );

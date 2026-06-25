@@ -33,11 +33,11 @@ export interface Galaxy3DResult {
   radius: number; // bounding radius for camera framing
 }
 
-const RING_GAP = 16; // distance added per generation
-const ROOT_RING = 14; // first generation's radius from center
-const ARM_SPREAD = 0.5; // how wide each branch's angular sector fans (fraction of π)
-const JITTER = 2.0; // organic scatter so it's a cloud, not a disc
-const GEN_LIFT = 9; // vertical separation per generation (depth read)
+const RING_GAP = 26; // distance added per generation (room for photo portraits)
+const ROOT_RING = 22; // first generation's radius from center
+const ARM_SPREAD = 0.58; // how wide each branch's angular sector fans (fraction of π)
+const JITTER = 3.0; // organic scatter so it's a cloud, not a disc
+const GEN_LIFT = 13; // vertical separation per generation (depth read)
 
 function hash(id: string, salt: number): number {
   let h = 2166136261 ^ salt;
