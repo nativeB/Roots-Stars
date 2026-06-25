@@ -6,6 +6,7 @@ import type {
   Union,
   UnionAnchor,
 } from '@roots/shared';
+import { forceLayout } from './forceLayout';
 
 /**
  * Generational-band layout for a UNION-BASED family graph (a multi-root DAG).
@@ -20,12 +21,15 @@ import type {
  * the layout identical across devices.
  */
 
-const BAND_HEIGHT = 260; // generous vertical breathing room between generations
-const NODE_GAP = 120; // horizontal gap between sibling/unit slots
+const BAND_HEIGHT = 300; // vertical distance between generations
+const LEAF_GAP = 86; // horizontal slot width per leaf (tight sibling clustering)
 const PARTNER_GAP = 104; // gap between two partners in a union
-const JITTER_X = 14;
-const JITTER_Y = 30;
+const JITTER_X = 12;
+const JITTER_Y = 34;
 const MAX_RELAX_ITERS = 12;
+
+const LAYOUT_MODE =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_LAYOUT) || 'tree';
 
 /** Stable, deterministic pseudo-random in [-1, 1] from a string id. */
 function hashUnit(id: string, salt: string): number {
@@ -166,136 +170,158 @@ function buildUnitsPerBand(people: Person[], g: Graph, gen: Map<string, number>)
 export function computeLayout(people: Person[], unions: Union[]): LayoutResult {
   const g = buildGraph(people, unions);
   const gen = assignGenerations(people, g);
-  const bands = buildUnitsPerBand(people, g, gen);
 
-  const sortedGens = [...bands.keys()].sort((a, b) => a - b);
-
-  // unit center x, keyed by unit.key — filled top-down then refined.
-  const unitX = new Map<string, number>();
-  const unitByKey = new Map<string, Unit>();
-  for (const units of bands.values()) for (const u of units) unitByKey.set(u.key, u);
-
-  // person → the unit that contains it (for barycenter lookups)
-  const unitOfPerson = new Map<string, Unit>();
-  for (const units of bands.values())
-    for (const u of units) for (const m of u.members) unitOfPerson.set(m, u);
-
-  // initial ordering: spread each band evenly
-  for (const band of sortedGens) {
-    const units = bands.get(band)!;
-    units.forEach((u, i) => unitX.set(u.key, i * (NODE_GAP * 2)));
-  }
-
-  /** barycenter of a unit = mean x of the units it connects to (parents + children). */
-  function barycenter(u: Unit): number | null {
-    const xs: number[] = [];
-    for (const m of u.members) {
-      const person = g.peopleById.get(m)!;
-      // parent unit
-      if (person.parentUnionId) {
-        const pu = g.unionsById.get(person.parentUnionId);
-        if (pu) {
-          const parents = [pu.partnerAId, pu.partnerBId].filter(Boolean) as string[];
-          for (const pid of parents) {
-            const pUnit = unitOfPerson.get(pid);
-            if (pUnit) xs.push(unitX.get(pUnit.key) ?? 0);
-          }
-        }
-      }
-      // children units
-      for (const uid of g.partnerUnions.get(m) ?? []) {
-        for (const childId of g.childrenOf.get(uid) ?? []) {
-          const cUnit = unitOfPerson.get(childId);
-          if (cUnit) xs.push(unitX.get(cUnit.key) ?? 0);
-        }
-      }
-    }
-    if (xs.length === 0) return null;
-    return xs.reduce((a, b) => a + b, 0) / xs.length;
-  }
-
-  // barycenter sweeps (down then up) to reduce crossings
-  for (let sweep = 0; sweep < 4; sweep++) {
-    const order = sweep % 2 === 0 ? sortedGens : [...sortedGens].reverse();
-    for (const band of order) {
-      const units = bands.get(band)!;
-      const withBary = units.map((u) => ({ u, b: barycenter(u) ?? unitX.get(u.key) ?? 0 }));
-      withBary.sort((a, b) => a.b - b.b);
-      // re-pack left-to-right honoring spacing, centering on the barycenter cloud
-      let cursor = 0;
-      for (const { u } of withBary) {
-        unitX.set(u.key, cursor);
-        cursor += NODE_GAP * 2;
-      }
-      bands.set(
-        band,
-        withBary.map((w) => w.u),
-      );
-    }
-  }
-
-  // Pass 2: center each parent unit over its children, bottom-up, then resolve overlaps.
-  for (const band of [...sortedGens].reverse()) {
-    const units = bands.get(band)!;
-    for (const u of units) {
-      if (!u.unionId) continue;
-      const kids = g.childrenOf.get(u.unionId) ?? [];
-      if (kids.length === 0) continue;
-      const kidXs = kids
-        .map((k) => unitOfPerson.get(k))
-        .filter(Boolean)
-        .map((cu) => unitX.get(cu!.key) ?? 0);
-      if (kidXs.length) {
-        const mid = (Math.min(...kidXs) + Math.max(...kidXs)) / 2;
-        unitX.set(u.key, mid);
-      }
-    }
-    // de-overlap within the band: enforce min spacing left-to-right
-    const ordered = [...units].sort((a, b) => (unitX.get(a.key) ?? 0) - (unitX.get(b.key) ?? 0));
-    for (let i = 1; i < ordered.length; i++) {
-      const prev = ordered[i - 1]!;
-      const cur = ordered[i]!;
-      const minGap = NODE_GAP * 2;
-      const prevX = unitX.get(prev.key) ?? 0;
-      if ((unitX.get(cur.key) ?? 0) - prevX < minGap) {
-        unitX.set(cur.key, prevX + minGap);
-      }
-    }
-  }
-
-  // ── Materialize node positions ──
   const nodes: PositionedNode[] = [];
   const personPos = new Map<string, { x: number; y: number }>();
 
-  for (const band of sortedGens) {
-    const y = band * BAND_HEIGHT;
-    for (const u of bands.get(band)!) {
-      const cx = unitX.get(u.key) ?? 0;
-      if (u.members.length === 2) {
-        const [a, b] = u.members as [string, string];
-        place(a, cx - PARTNER_GAP / 2, y);
-        place(b, cx + PARTNER_GAP / 2, y);
-      } else {
-        place(u.members[0]!, cx, y);
-      }
-    }
-  }
-
-  function place(personId: string, x: number, y: number) {
+  const place = (personId: string, x: number, y: number) => {
     const jx = hashUnit(personId, 'x') * JITTER_X;
     const jy = hashUnit(personId, 'y') * JITTER_Y;
     const px = x + jx;
     const py = y + jy;
     personPos.set(personId, { x: px, y: py });
     const person = g.peopleById.get(personId)!;
-    nodes.push({
-      personId,
-      x: px,
-      y: py,
-      generation: gen.get(personId) ?? 0,
-      claimed: person.claimed,
-    });
+    nodes.push({ personId, x: px, y: py, generation: gen.get(personId) ?? 0, claimed: person.claimed });
+  };
+
+  if (LAYOUT_MODE === 'force') {
+    // ── radial / nebula layout ──
+    const { pos } = forceLayout(people, unions, gen, g.childrenOf, g.unionsById, g.partnerUnions);
+    for (const [pid, p] of pos) place(pid, p.x, p.y);
+  } else {
+    // ── tidy-tree layout (default): tight sibling clusters under each parent ──
+    treeLayout(people, g, gen, place);
   }
+
+  return buildThreadsAndBounds(unions, g, personPos, nodes);
+}
+
+/**
+ * Tidy-tree x-assignment. Leaves consume one slot; parents center over their
+ * children; partner pairs sit side by side. Width = sum of leaf slots, so
+ * siblings cluster tightly under their parent instead of spreading across the
+ * whole band. Runs a couple of barycenter sweeps first to order within bands.
+ */
+function treeLayout(
+  people: Person[],
+  g: Graph,
+  gen: Map<string, number>,
+  place: (id: string, x: number, y: number) => void,
+) {
+  const bands = buildUnitsPerBand(people, g, gen);
+  const sortedGens = [...bands.keys()].sort((a, b) => a - b);
+
+  const unitOfPerson = new Map<string, Unit>();
+  for (const units of bands.values())
+    for (const u of units) for (const m of u.members) unitOfPerson.set(m, u);
+
+  const unitX = new Map<string, number>();
+  for (const band of sortedGens) bands.get(band)!.forEach((u, i) => unitX.set(u.key, i));
+
+  const barycenter = (u: Unit): number | null => {
+    const xs: number[] = [];
+    for (const m of u.members) {
+      const person = g.peopleById.get(m)!;
+      if (person.parentUnionId) {
+        const pu = g.unionsById.get(person.parentUnionId);
+        for (const pid of [pu?.partnerAId, pu?.partnerBId]) {
+          const pUnit = pid ? unitOfPerson.get(pid) : undefined;
+          if (pUnit) xs.push(unitX.get(pUnit.key) ?? 0);
+        }
+      }
+      for (const uid of g.partnerUnions.get(m) ?? [])
+        for (const childId of g.childrenOf.get(uid) ?? []) {
+          const cUnit = unitOfPerson.get(childId);
+          if (cUnit) xs.push(unitX.get(cUnit.key) ?? 0);
+        }
+    }
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  };
+
+  // order within bands to reduce crossings
+  for (let sweep = 0; sweep < 4; sweep++) {
+    const order = sweep % 2 === 0 ? sortedGens : [...sortedGens].reverse();
+    for (const band of order) {
+      const units = bands.get(band)!;
+      const withB = units.map((u) => ({ u, b: barycenter(u) ?? unitX.get(u.key) ?? 0 }));
+      withB.sort((a, b) => a.b - b.b);
+      withB.forEach((w, i) => unitX.set(w.u.key, i));
+      bands.set(band, withB.map((w) => w.u));
+    }
+  }
+
+  // tidy-tree packing: assign each unit an x by walking generations bottom-up.
+  // A unit with children centers over them; a childless unit takes the next slot.
+  const finalX = new Map<string, number>();
+  let cursor = 0;
+  const childUnitsOf = (u: Unit): Unit[] => {
+    const out: Unit[] = [];
+    const seen = new Set<string>();
+    for (const m of u.members)
+      for (const uid of g.partnerUnions.get(m) ?? [])
+        for (const childId of g.childrenOf.get(uid) ?? []) {
+          const cu = unitOfPerson.get(childId);
+          if (cu && !seen.has(cu.key)) {
+            seen.add(cu.key);
+            out.push(cu);
+          }
+        }
+    return out;
+  };
+
+  const assigned = new Set<string>();
+  const assign = (u: Unit): number => {
+    if (finalX.has(u.key)) return finalX.get(u.key)!;
+    assigned.add(u.key);
+    const kids = childUnitsOf(u).filter((k) => !assigned.has(k.key));
+    if (kids.length === 0) {
+      const x = cursor;
+      cursor += LEAF_GAP;
+      finalX.set(u.key, x);
+      return x;
+    }
+    const kidXs = kids.map((k) => assign(k));
+    const x = (Math.min(...kidXs) + Math.max(...kidXs)) / 2;
+    finalX.set(u.key, x);
+    return x;
+  };
+
+  // start from the topmost band's units (roots), left to right
+  for (const u of bands.get(sortedGens[0]!) ?? []) assign(u);
+  // any unit not reached (disconnected) gets appended
+  for (const band of sortedGens) for (const u of bands.get(band)!) if (!finalX.has(u.key)) assign(u);
+
+  // de-overlap each band so packed parents don't collide
+  for (const band of sortedGens) {
+    const ordered = [...bands.get(band)!].sort((a, b) => (finalX.get(a.key) ?? 0) - (finalX.get(b.key) ?? 0));
+    for (let i = 1; i < ordered.length; i++) {
+      const prev = finalX.get(ordered[i - 1]!.key) ?? 0;
+      if ((finalX.get(ordered[i]!.key) ?? 0) - prev < LEAF_GAP)
+        finalX.set(ordered[i]!.key, prev + LEAF_GAP);
+    }
+  }
+
+  for (const band of sortedGens) {
+    const y = band * BAND_HEIGHT;
+    for (const u of bands.get(band)!) {
+      const cx = finalX.get(u.key) ?? 0;
+      if (u.members.length === 2) {
+        place(u.members[0]!, cx - PARTNER_GAP / 2, y);
+        place(u.members[1]!, cx + PARTNER_GAP / 2, y);
+      } else {
+        place(u.members[0]!, cx, y);
+      }
+    }
+  }
+}
+
+/** Shared: build partner + parent-child threads and the layout bounds. */
+function buildThreadsAndBounds(
+  unions: Union[],
+  g: Graph,
+  personPos: Map<string, { x: number; y: number }>,
+  nodes: PositionedNode[],
+): LayoutResult {
 
   // ── Union anchors + threads ──
   const unionAnchors: UnionAnchor[] = [];
@@ -323,19 +349,29 @@ export function computeLayout(people: Person[], unions: Union[]): LayoutResult {
       });
     }
 
-    // parent-child threads: stem down from anchor, fan to each child
+    // parent-child threads: fan to each child. Top-down (tree) gets a short stem
+    // then a curve; otherwise (radial) a single gentle quadratic toward the child.
     for (const childId of g.childrenOf.get(u.id) ?? []) {
       const c = personPos.get(childId);
       if (!c) continue;
-      const stemY = anchorY + 24;
-      threads.push({
-        id: `pc:${u.id}:${childId}`,
-        kind: 'parent-child',
-        unionId: u.id,
-        childId,
-        // anchor → short vertical stem → quadratic curve fanning to the child
-        d: `M ${anchorX} ${anchorY} L ${anchorX} ${stemY} Q ${anchorX} ${(stemY + c.y) / 2} ${c.x} ${c.y}`,
-      });
+      const below = c.y > anchorY + 30;
+      let d: string;
+      if (below) {
+        const stemY = anchorY + 24;
+        d = `M ${anchorX} ${anchorY} L ${anchorX} ${stemY} Q ${anchorX} ${(stemY + c.y) / 2} ${c.x} ${c.y}`;
+      } else {
+        // control point bowed perpendicular to the line for an organic arc
+        const mx = (anchorX + c.x) / 2;
+        const my = (anchorY + c.y) / 2;
+        const dx = c.x - anchorX;
+        const dy = c.y - anchorY;
+        const len = Math.hypot(dx, dy) || 1;
+        const bow = Math.min(40, len * 0.12);
+        const cxp = mx + (-dy / len) * bow;
+        const cyp = my + (dx / len) * bow;
+        d = `M ${anchorX} ${anchorY} Q ${cxp} ${cyp} ${c.x} ${c.y}`;
+      }
+      threads.push({ id: `pc:${u.id}:${childId}`, kind: 'parent-child', unionId: u.id, childId, d });
     }
   }
 

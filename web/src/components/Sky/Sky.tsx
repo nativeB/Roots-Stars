@@ -57,12 +57,36 @@ export function Sky({
     return new Map(segs.map((s) => [s.threadId, s.depth]));
   }, [ignitingId, people, unions]);
 
+  // immediate family of the focused star (parents, partners, children) — these
+  // keep their labels so you can read the neighbourhood you tapped into.
+  const focusNeighbors = useMemo(() => {
+    const set = new Set<string>();
+    if (!focusedId) return set;
+    const focused = peopleById.get(focusedId);
+    if (focused?.parentUnionId) {
+      const pu = unions.find((u) => u.id === focused.parentUnionId);
+      for (const pid of [pu?.partnerAId, pu?.partnerBId]) if (pid) set.add(pid);
+    }
+    for (const u of unions) {
+      const isA = u.partnerAId === focusedId;
+      const isB = u.partnerBId === focusedId;
+      if (isA && u.partnerBId) set.add(u.partnerBId);
+      if (isB) set.add(u.partnerAId);
+      if (isA || isB) for (const p of people) if (p.parentUnionId === u.id) set.add(p.id);
+    }
+    return set;
+  }, [focusedId, peopleById, people, unions]);
+
   const { viewport, onPointerDown, onPointerMove, onPointerUp, onWheel, reset, focusOn } =
     usePanZoom({
       x: 0,
       y: 0,
       scale: 1,
     });
+
+  // small families read fine with every label; big ones only label what matters
+  // until you zoom in (≥1.15×). Keeps a 90-person sky calm, not cluttered.
+  const labelsAlways = people.length <= 24 || viewport.scale >= 1.15;
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -139,6 +163,14 @@ export function Sky({
             {layout.nodes.map((n) => {
               const person = peopleById.get(n.personId);
               if (!person) return null;
+              // keep the sky calm at scale: only show names that matter, unless the
+              // family is small or the viewer has zoomed in to explore.
+              const showLabel =
+                labelsAlways ||
+                person.claimed ||
+                focusedId === n.personId ||
+                meId === n.personId ||
+                focusNeighbors.has(n.personId);
               return (
                 <Star
                   key={n.personId}
@@ -148,6 +180,7 @@ export function Sky({
                   focused={focusedId === n.personId}
                   isMe={meId === n.personId}
                   photoUrl={photoUrlFor?.(n.personId)}
+                  showLabel={showLabel}
                   reducedMotion={reducedMotion}
                   onSelect={onSelect}
                 />

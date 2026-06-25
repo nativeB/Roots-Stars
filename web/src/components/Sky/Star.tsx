@@ -11,6 +11,8 @@ interface StarProps {
   isMe?: boolean;
   /** resolved photo URL — rendered as the face inside the orb */
   photoUrl?: string;
+  /** show the name label (claimed / focused / near-focus / zoomed-in); else a quiet dot */
+  showLabel?: boolean;
   reducedMotion: boolean;
   onSelect: (personId: string) => void;
 }
@@ -30,6 +32,7 @@ function StarImpl({
   focused,
   isMe,
   photoUrl,
+  showLabel = true,
   reducedMotion,
   onSelect,
 }: StarProps) {
@@ -51,7 +54,7 @@ function StarImpl({
       data-person-name={person.name}
       data-claimed={person.claimed ? 'true' : 'false'}
       data-testid={`star-${person.id}`}
-      style={{ cursor: 'pointer', outline: 'none' }}
+      style={{ cursor: 'pointer', outline: 'none', pointerEvents: 'none' }}
       onClick={() => onSelect(person.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -60,8 +63,9 @@ function StarImpl({
         }
       }}
     >
-      {/* generous invisible hit target for thumbs */}
-      <circle r={30} fill="transparent" />
+      {/* the ONLY interactive element — a tidy hit target. Everything else is
+          pointer-events:none so a neighbour's glow can never block a tap. */}
+      <circle r={26} fill="transparent" style={{ pointerEvents: 'all' }} />
 
       {/* outer atmospheric glow */}
       <motion.circle
@@ -157,29 +161,33 @@ function StarImpl({
         </text>
       )}
 
-      {/* name label */}
-      <text
-        y={core + 22}
-        textAnchor="middle"
-        fill={claimed ? '#FBF7FF' : '#C9C2EC'}
-        fontFamily="Fraunces, serif"
-        fontSize={15}
-        fontWeight={500}
-        letterSpacing={0.2}
-        style={{ pointerEvents: 'none', userSelect: 'none' }}
-      >
-        {person.name}
-      </text>
-      {person.signatureEmoji && (
-        <text
-          y={core + 40}
-          textAnchor="middle"
-          fontSize={13}
-          opacity={0.85}
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-        >
-          {person.signatureEmoji}
-        </text>
+      {/* name label — only when relevant (claimed / focused / near focus / zoomed in) */}
+      {showLabel && (
+        <g>
+          <text
+            y={core + 22}
+            textAnchor="middle"
+            fill={claimed ? '#FBF7FF' : '#C9C2EC'}
+            fontFamily="Fraunces, serif"
+            fontSize={15}
+            fontWeight={500}
+            letterSpacing={0.2}
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+          >
+            {person.name}
+          </text>
+          {person.signatureEmoji && (
+            <text
+              y={core + 40}
+              textAnchor="middle"
+              fontSize={13}
+              opacity={0.85}
+              style={{ pointerEvents: 'none', userSelect: 'none' }}
+            >
+              {person.signatureEmoji}
+            </text>
+          )}
+        </g>
       )}
     </g>
   );
