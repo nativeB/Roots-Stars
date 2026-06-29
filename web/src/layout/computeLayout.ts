@@ -21,11 +21,11 @@ import { forceLayout } from './forceLayout';
  * the layout identical across devices.
  */
 
-const BAND_HEIGHT = 300; // vertical distance between generations
-const LEAF_GAP = 86; // horizontal slot width per leaf (tight sibling clustering)
-const PARTNER_GAP = 104; // gap between two partners in a union
-const JITTER_X = 12;
-const JITTER_Y = 34;
+const BAND_HEIGHT = 200; // vertical distance between generations
+const LEAF_GAP = 108; // horizontal slot width per leaf (room for portraits + names)
+const PARTNER_GAP = 120; // gap between two partners in a union
+const JITTER_X = 0; // no jitter — a clean tree reads better than an organic scatter
+const JITTER_Y = 0;
 const MAX_RELAX_ITERS = 12;
 
 const LAYOUT_MODE =
@@ -357,8 +357,12 @@ function buildThreadsAndBounds(
       const below = c.y > anchorY + 30;
       let d: string;
       if (below) {
-        const stemY = anchorY + 24;
-        d = `M ${anchorX} ${anchorY} L ${anchorX} ${stemY} Q ${anchorX} ${(stemY + c.y) / 2} ${c.x} ${c.y}`;
+        // clean S-curve from just below the parent down to just above the child
+        // portrait — reads unmistakably as "descends from".
+        const startY = anchorY + 4;
+        const endY = c.y - 26;
+        const midY = (startY + endY) / 2;
+        d = `M ${anchorX} ${startY} C ${anchorX} ${midY}, ${c.x} ${midY}, ${c.x} ${endY}`;
       } else {
         // control point bowed perpendicular to the line for an organic arc
         const mx = (anchorX + c.x) / 2;

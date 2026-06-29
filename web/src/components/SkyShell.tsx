@@ -1,10 +1,15 @@
 import { lazy, Suspense, useState } from 'react';
 import type { Person, PersonCardFields, RelationshipKind, Union } from '@roots/shared';
 import { Sky } from './Sky/Sky';
+import { FocusView } from './Focus/FocusView';
 
 // 3D galaxy is heavy (Three.js) — load it only when selected.
 const Galaxy3D = lazy(() => import('./Galaxy/Galaxy3D').then((m) => ({ default: m.Galaxy3D })));
-const USE_GALAXY = (import.meta.env?.VITE_LAYOUT ?? 'galaxy') === 'galaxy';
+// default experience is the FOCUS/WALK view: one big readable person + family.
+// 'tree' and 'galaxy' remain available behind VITE_LAYOUT for the all-at-a-glance modes.
+const LAYOUT = import.meta.env?.VITE_LAYOUT ?? 'focus';
+const USE_GALAXY = LAYOUT === 'galaxy';
+const USE_FOCUS = LAYOUT === 'focus';
 import { SkyHeader } from './SkyHeader';
 import { SkyCelebration } from './SkyCelebration';
 import { PersonCard } from './Card/PersonCard';
@@ -93,6 +98,16 @@ export function SkyShell({
         <div className="absolute inset-0 overflow-auto pt-28">
           <AccessibleList people={people} unions={unions} onSelect={setFocusedId} />
         </div>
+      ) : USE_FOCUS && !force2D ? (
+        <FocusView
+          people={people}
+          unions={unions}
+          focusedId={focusedId}
+          ignitingId={ignitingId}
+          meId={meId ?? null}
+          photoUrlFor={photoUrlFor}
+          onSelect={setFocusedId}
+        />
       ) : USE_GALAXY && !force2D ? (
         <Suspense fallback={<div className="absolute inset-0 bg-space-deep" />}>
           <Galaxy3D

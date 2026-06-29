@@ -86,7 +86,9 @@ export function Sky({
 
   // small families read fine with every label; big ones only label what matters
   // until you zoom in (≥1.15×). Keeps a 90-person sky calm, not cluttered.
-  const labelsAlways = people.length <= 24 || viewport.scale >= 1.15;
+  // names are part of the life — show them under every portrait (the dark
+  // stroke keeps them legible on the night field, like the reference trees).
+  const labelsAlways = true;
 
   useLayoutEffect(() => {
     const el = containerRef.current;

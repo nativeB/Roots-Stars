@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Constellation layout: 'galaxy' (3D, default), 'tree' (2D), or 'force' (2D radial). */
-  readonly VITE_LAYOUT?: 'galaxy' | 'tree' | 'force';
+  /** Layout: 'focus' (walk view, default), 'tree' (2D), 'force' (radial), 'galaxy' (3D). */
+  readonly VITE_LAYOUT?: 'focus' | 'galaxy' | 'tree' | 'force';
 }
 
 interface ImportMeta {

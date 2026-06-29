@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Person, PositionedNode } from '@roots/shared';
+import { avatarDataUrl } from '../../lib/avatar';
 
 interface StarProps {
   node: PositionedNode;
@@ -38,8 +39,10 @@ function StarImpl({
 }: StarProps) {
   const claimed = person.claimed || igniting;
   const color = claimed ? GOLD : VIOLET;
-  const core = claimed ? 9 : 7;
-  // deterministic per-star twinkle timing so the sky shimmers, not strobes
+  // the portrait radius — this IS the star now (a face, not a dot)
+  const R = claimed ? 22 : 19;
+  const face = photoUrl ?? avatarDataUrl(person.name, person.signatureEmoji ?? null);
+  const clipId = `clip-${person.id}`;
   const twinkleDur = 3.4 + ((node.x * 7 + node.y * 13) % 1000) / 1000 * 2.6;
   const twinkleDelay = ((node.x * 31 + node.y * 17) % 1000) / 1000 * 2;
 
@@ -63,20 +66,16 @@ function StarImpl({
         }
       }}
     >
-      {/* the ONLY interactive element — a tidy hit target. Everything else is
-          pointer-events:none so a neighbour's glow can never block a tap. */}
-      <circle r={26} fill="transparent" style={{ pointerEvents: 'all' }} />
-
-      {/* outer atmospheric glow */}
+      {/* soft glow behind the portrait (gold claimed / violet unclaimed) */}
       <motion.circle
-        r={core * 4.2}
+        r={R * 1.9}
         fill={`url(#halo-${claimed ? 'gold' : 'violet'})`}
         animate={
           reducedMotion
             ? undefined
             : igniting
-              ? { scale: [1, 2.6, 1.4], opacity: [0.5, 0.9, 0.55] }
-              : { opacity: claimed ? [0.5, 0.72, 0.5] : [0.28, 0.42, 0.28] }
+              ? { scale: [1, 2.2, 1.3], opacity: [0.55, 0.95, 0.6] }
+              : { opacity: claimed ? [0.5, 0.7, 0.5] : [0.3, 0.45, 0.3] }
         }
         transition={
           igniting
@@ -86,69 +85,62 @@ function StarImpl({
         style={{ transformOrigin: 'center' }}
       />
 
-      {/* mid bloom */}
-      <circle r={core * 1.9} fill={color} opacity={claimed ? 0.28 : 0.16} filter="url(#glow-soft)" />
+      <clipPath id={clipId}>
+        <circle r={R} />
+      </clipPath>
 
-      {/* the bright core */}
-      <motion.circle
-        r={core}
-        fill={`url(#core-${claimed ? 'gold' : 'violet'})`}
-        stroke={claimed ? '#FFF4DE' : '#E7DBFF'}
-        strokeWidth={claimed ? 1.1 : 0.6}
-        strokeOpacity={0.85}
-        animate={reducedMotion ? undefined : igniting ? { scale: [1, 1.9, 1] } : undefined}
+      {/* the portrait — photo or warm generated avatar. THE star. */}
+      <motion.g
+        animate={reducedMotion ? undefined : igniting ? { scale: [1, 1.18, 1] } : undefined}
         transition={{ duration: 1, ease: 'easeOut' }}
-        data-testid={`star-core-${person.id}`}
         style={{ transformOrigin: 'center' }}
-      />
+        data-testid={`star-core-${person.id}`}
+        data-claimed={person.claimed ? 'true' : 'false'}
+      >
+        <image
+          href={face}
+          x={-R}
+          y={-R}
+          width={R * 2}
+          height={R * 2}
+          preserveAspectRatio="xMidYMid slice"
+          clipPath={`url(#${clipId})`}
+          opacity={claimed ? 1 : 0.88}
+        />
+        {/* the ring: gold when claimed, violet otherwise */}
+        <circle
+          r={R + 1.4}
+          fill="none"
+          stroke={color}
+          strokeWidth={claimed ? 2.6 : 1.8}
+          opacity={0.96}
+        />
+      </motion.g>
 
-      {/* a face inside the orb, if there is one — clipped to a warm ringed circle */}
-      {photoUrl && (
-        <g data-testid={`star-photo-${person.id}`}>
-          <clipPath id={`clip-${person.id}`}>
-            <circle r={core * 1.5} />
-          </clipPath>
-          <circle r={core * 1.5 + 1.4} fill="none" stroke={color} strokeWidth={1.6} opacity={0.95} />
-          <image
-            href={photoUrl}
-            x={-core * 1.5}
-            y={-core * 1.5}
-            width={core * 3}
-            height={core * 3}
-            preserveAspectRatio="xMidYMid slice"
-            clipPath={`url(#clip-${person.id})`}
-          />
-        </g>
-      )}
+      {/* generous invisible hit target (only interactive element) */}
+      <circle r={R + 4} fill="transparent" style={{ pointerEvents: 'all' }} />
 
-      {/* tiny specular highlight for a jewel-like read (only on bare orbs) */}
-      {!photoUrl && (
-        <circle cx={-core * 0.3} cy={-core * 0.3} r={core * 0.28} fill="#FFFFFF" opacity={0.7} />
-      )}
-
-      {/* "you are here" — a gentle pulsing ring around this device's home star */}
+      {/* "you are here" pulsing ring */}
       {isMe && (
         <motion.circle
-          r={core + 9}
+          r={R + 6}
           fill="none"
           stroke={GOLD}
-          strokeWidth={1.4}
+          strokeWidth={1.6}
           strokeDasharray="3 5"
-          animate={reducedMotion ? { opacity: 0.7 } : { opacity: [0.4, 0.9, 0.4], scale: [1, 1.08, 1] }}
+          animate={reducedMotion ? { opacity: 0.7 } : { opacity: [0.4, 0.9, 0.4], scale: [1, 1.06, 1] }}
           transition={{ duration: 2.6, repeat: reducedMotion ? 0 : Infinity, ease: 'easeInOut' }}
           style={{ transformOrigin: 'center' }}
         />
       )}
 
       {/* focus ring */}
-      {focused && (
-        <circle r={core + 8} fill="none" stroke={GOLD} strokeWidth={1.5} opacity={0.9} />
-      )}
+      {focused && <circle r={R + 6} fill="none" stroke={GOLD} strokeWidth={2} opacity={0.95} />}
 
       {/* "you" pill above the home star */}
       {isMe && (
         <text
-          y={-core - 12}
+          y={-R - 10}
           textAnchor="middle"
           fill={GOLD}
           fontFamily="Hanken Grotesk, sans-serif"
@@ -161,32 +153,24 @@ function StarImpl({
         </text>
       )}
 
-      {/* name label — only when relevant (claimed / focused / near focus / zoomed in) */}
+      {/* name pill under the portrait — like the reference trees */}
       {showLabel && (
-        <g>
+        <g style={{ pointerEvents: 'none', userSelect: 'none' }}>
           <text
-            y={core + 22}
+            y={R + 18}
             textAnchor="middle"
-            fill={claimed ? '#FBF7FF' : '#C9C2EC'}
+            fill={claimed ? '#FBF7FF' : '#D9D3F2'}
             fontFamily="Fraunces, serif"
-            fontSize={15}
-            fontWeight={500}
+            fontSize={14}
+            fontWeight={600}
             letterSpacing={0.2}
-            style={{ pointerEvents: 'none', userSelect: 'none' }}
+            style={{ paintOrder: 'stroke' }}
+            stroke="#0B0A1F"
+            strokeWidth={3}
+            strokeLinejoin="round"
           >
             {person.name}
           </text>
-          {person.signatureEmoji && (
-            <text
-              y={core + 40}
-              textAnchor="middle"
-              fontSize={13}
-              opacity={0.85}
-              style={{ pointerEvents: 'none', userSelect: 'none' }}
-            >
-              {person.signatureEmoji}
-            </text>
-          )}
         </g>
       )}
     </g>

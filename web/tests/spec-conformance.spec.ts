@@ -51,27 +51,23 @@ test.describe('design tokens (§6)', () => {
 
   test('claimed stars are gold, unclaimed are dim lavender', async ({ page }) => {
     await page.goto('/demo');
-    // Kwame is claimed in the fixture: group flagged claimed, core uses gold gradient
+    // each person is now a portrait orb: claimed burns gold, unclaimed glows violet.
+    // Kwame is claimed in the fixture: gold ring around the portrait.
     await expect(page.locator('[data-testid="star-kwame"]')).toHaveAttribute(
       'data-claimed',
       'true',
     );
-    await expect(page.locator('[data-testid="star-core-kwame"]')).toHaveAttribute(
-      'fill',
-      'url(#core-gold)',
-    );
-    // Adwoa is unclaimed: violet (the inviting "unlit" hue)
+    await expect(
+      page.locator('[data-testid="star-core-kwame"] circle[stroke="#FFD08A"]'),
+    ).toHaveCount(1);
+    // Adwoa is unclaimed: violet ring (the inviting "unlit" hue)
     await expect(page.locator('[data-testid="star-adwoa"]')).toHaveAttribute(
       'data-claimed',
       'false',
     );
-    await expect(page.locator('[data-testid="star-core-adwoa"]')).toHaveAttribute(
-      'fill',
-      'url(#core-violet)',
-    );
-    // the gold + violet core gradients are defined
-    await expect(page.locator('#core-gold')).toHaveCount(1);
-    await expect(page.locator('#core-violet')).toHaveCount(1);
+    await expect(
+      page.locator('[data-testid="star-core-adwoa"] circle[stroke="#B58CFF"]'),
+    ).toHaveCount(1);
   });
 });
 
