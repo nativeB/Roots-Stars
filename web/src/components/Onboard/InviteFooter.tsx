@@ -16,13 +16,11 @@ export function InviteFooter({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center">
-      <button
-        onClick={copy}
-        className="pointer-events-auto rounded-full bg-space-panel/80 px-4 py-2 font-body text-sm text-starlight backdrop-blur transition hover:bg-space-panel"
-      >
-        {copied ? '✦ Link copied — share it with family' : '↗ Invite the rest of the family'}
-      </button>
-    </div>
+    <button
+      onClick={copy}
+      className="pointer-events-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full border border-white/10 bg-space-panel/70 py-3 font-body text-sm font-medium text-starlight backdrop-blur-md transition hover:border-white/20 hover:bg-space-panel"
+    >
+      {copied ? '✦ Link copied — share it with family' : '↗ Invite the rest of the family'}
+    </button>
   );
 }
