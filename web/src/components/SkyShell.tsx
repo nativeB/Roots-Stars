@@ -217,12 +217,12 @@ export function SkyShell({
 
       {/* footer: invite nudge (if provided) above the Add-your-star pill */}
       {!showList && (
-        <div className="absolute inset-x-0 bottom-4 z-10 flex flex-col items-center gap-2.5 px-5">
+        <div className="absolute inset-x-0 bottom-3 z-10 flex flex-col items-center gap-2 px-4 pb-[env(safe-area-inset-bottom)]">
           {footer}
           {onAddYourStar ? (
             <button
               onClick={() => setAddingSelf(true)}
-              className="pointer-events-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full border border-glow-gold/40 bg-glow-gold/10 py-3.5 font-body font-semibold text-glow-gold backdrop-blur-md transition hover:bg-glow-gold/20"
+              className="pointer-events-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full border border-glow-gold/40 bg-glow-gold/10 py-3 font-body font-semibold text-glow-gold backdrop-blur-md transition hover:bg-glow-gold/20"
               data-testid="add-your-star"
             >
               ✦ Add your star

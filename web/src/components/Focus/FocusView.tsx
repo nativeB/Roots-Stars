@@ -133,12 +133,7 @@ export function FocusView({
     return <div className="absolute inset-0 bg-space-deep" />;
   }
 
-  const ring: Relative[] = [
-    ...fam.parents,
-    ...fam.partners,
-    ...sibsShown,
-    ...fam.children,
-  ];
+  const ring: Relative[] = [...fam.parents, ...fam.partners, ...sibsShown, ...fam.children];
 
   // walk to a relative (recentre). Tapping the centre opens the card.
   const walkTo = (id: string) => setCenterId(id);
@@ -161,22 +156,20 @@ export function FocusView({
     const needW = maxX * UX + ORBIT / 2 + 70;
     const needH = maxY * UY + ORBIT / 2 + 90;
     const availW = size.width / 2 - 12;
-    const availH = (size.height - 250) / 2; // header/privacy-banner + footer chrome
+    // Reserve extra vertical room for two stacked footer pills on small screens.
+    const footerChrome = size.width < 640 ? 320 : 280;
+    const availH = (size.height - footerChrome) / 2;
     const sc = Math.min(1, availW / needW, availH / needH);
     return Number.isFinite(sc) && sc > 0 ? sc : 1;
   }, [slots, size]);
 
   return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0 overflow-hidden"
-      data-testid="focus-view"
-    >
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden" data-testid="focus-view">
       {/* the stage is centred (nudged below the header) and scaled to fit;
           positions are relative to its middle */}
       <div
         className="absolute left-1/2 top-1/2 h-0 w-0"
-        style={{ transform: `translateY(40px) scale(${fit})` }}
+        style={{ transform: `translateY(24px) scale(${fit})` }}
       >
         {/* connector threads from centre to each relative */}
         <svg
@@ -259,7 +252,12 @@ export function FocusView({
           <motion.div
             key={`sibs-more-${fam.focus.id}`}
             className="absolute"
-            style={{ left: 1.18 * UX, top: -0.5 * UY - SIB_PER_SIDE * 0.62 * UY, x: '-50%', y: '-50%' }}
+            style={{
+              left: 1.18 * UX,
+              top: -0.5 * UY - SIB_PER_SIDE * 0.62 * UY,
+              x: '-50%',
+              y: '-50%',
+            }}
             initial={reducedMotion ? false : { opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', stiffness: 240, damping: 28 }}

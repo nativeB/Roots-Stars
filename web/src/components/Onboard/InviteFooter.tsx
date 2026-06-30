@@ -18,7 +18,7 @@ export function InviteFooter({ slug }: { slug: string }) {
   return (
     <button
       onClick={copy}
-      className="pointer-events-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full border border-white/10 bg-space-panel/70 py-3 font-body text-sm font-medium text-starlight backdrop-blur-md transition hover:border-white/20 hover:bg-space-panel"
+      className="pointer-events-auto flex w-full max-w-sm items-center justify-center gap-2 rounded-full border border-white/10 bg-space-panel/70 py-2.5 font-body text-sm font-medium text-starlight backdrop-blur-md transition hover:border-white/20 hover:bg-space-panel"
     >
       {copied ? '✦ Link copied — share it with family' : '↗ Invite the rest of the family'}
     </button>
